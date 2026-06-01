@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { WebSocketServer, WebSocket, RawData } from 'ws'
+import { jwtVerify } from 'jose'
 import {
   PixelCanvas,
   PixelUpdate,
@@ -59,6 +60,33 @@ export const PRESENCE_COLORS = [
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ''
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const APP_ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:3000'
+
+// Derive the same secret the Next.js app uses to sign WS tokens
+function getTokenSecret(): Uint8Array {
+  const raw = process.env.WS_TOKEN_SECRET ?? ''
+  if (raw.length < 32) throw new Error('WS_TOKEN_SECRET must be at least 32 chars')
+  return new TextEncoder().encode(raw)
+}
+
+interface WsTokenClaims {
+  userId: string
+  username: string
+  roomCode: string
+}
+
+async function verifyWsToken(token: string): Promise<WsTokenClaims | null> {
+  try {
+    const { payload } = await jwtVerify(token, getTokenSecret(), { algorithms: ['HS256'] })
+    const { userId, username, roomCode } = payload as Record<string, unknown>
+    if (typeof userId !== 'string' || typeof username !== 'string' || typeof roomCode !== 'string') {
+      return null
+    }
+    return { userId, username, roomCode }
+  } catch {
+    return null
+  }
+}
 
 const RATE_LIMIT_WINDOW_MS = 1000
 const RATE_LIMIT_MAX = 100
@@ -344,21 +372,29 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
   // join — must come before any other room-scoped messages
   // ------------------------------------------------------------------
   if (type === 'join') {
-    const roomId = msg.roomId
-    const userId = msg.userId
     const clientVersion = msg.version
 
-    if (typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 128) {
-      send(ws, { type: 'error', message: 'Invalid roomId' })
+    // Verify the signed token minted by Next.js — never trust client-supplied userId/username
+    const tokenStr = msg.token
+    if (typeof tokenStr !== 'string') {
+      send(ws, { type: 'error', message: 'Missing auth token' })
+      ws.terminate()
       return
     }
-    if (typeof userId !== 'string' || userId.length === 0 || userId.length > 128) {
-      send(ws, { type: 'error', message: 'Invalid userId' })
+    const claims = await verifyWsToken(tokenStr)
+    if (!claims) {
+      send(ws, { type: 'error', message: 'Invalid or expired auth token' })
+      ws.terminate()
       return
     }
-    const username = sanitizeUsername(msg.username)
-    if (!username) {
-      send(ws, { type: 'error', message: 'Invalid username' })
+
+    const { userId, username, roomCode: tokenRoomCode } = claims
+
+    // msg.roomId must match what the token was issued for
+    const roomId = msg.roomId
+    if (typeof roomId !== 'string' || roomId.toUpperCase() !== tokenRoomCode) {
+      send(ws, { type: 'error', message: 'Room mismatch' })
+      ws.terminate()
       return
     }
 
@@ -606,7 +642,14 @@ export function createServer(port: number): WebSocketServer {
   // ------------------------------------------------------------------
   // Connection handler
   // ------------------------------------------------------------------
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', (ws: WebSocket, req) => {
+    // Reject connections from unexpected origins to prevent cross-site WebSocket hijacking
+    const origin = req.headers.origin ?? ''
+    if (origin !== APP_ORIGIN) {
+      ws.terminate()
+      return
+    }
+
     const joinTimer = setTimeout(() => {
       const meta = clientMeta.get(ws)
       if (!meta?.joined) {

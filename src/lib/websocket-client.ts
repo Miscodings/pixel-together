@@ -24,6 +24,7 @@ export class PixelTogetherWS {
   private roomId: string = ''
   private userId: string = ''
   private username: string = ''
+  private wsToken: string = ''
   private canvasVersion: number = 0
   private canvasWidth: number = 32
   private canvasHeight: number = 32
@@ -47,14 +48,14 @@ export class PixelTogetherWS {
     )
   }
 
-  connect(
+  async connect(
     roomId: string,
     userId: string,
     username: string,
     canvasWidth = 32,
     canvasHeight = 32,
     canvasVersion = 0,
-  ): void {
+  ): Promise<void> {
     this.roomId = roomId
     this.userId = userId
     this.username = username
@@ -63,6 +64,22 @@ export class PixelTogetherWS {
     this.canvasVersion = canvasVersion
     this.intentionalClose = false
     this.clock = new LamportClock(userId)
+
+    // Fetch a server-signed token so the WS server can verify userId/username
+    // without trusting client-supplied fields.
+    try {
+      const res = await fetch('/api/ws-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: roomId }),
+      })
+      if (!res.ok) throw new Error('token fetch failed')
+      const { token } = await res.json() as { token: string }
+      this.wsToken = token
+    } catch {
+      // Fall back to unauthenticated join — server will reject in production
+      this.wsToken = ''
+    }
 
     this.openSocket()
   }
@@ -88,8 +105,7 @@ export class PixelTogetherWS {
       this.sendRaw({
         type: 'join',
         roomId: this.roomId,
-        userId: this.userId,
-        username: this.username,
+        token: this.wsToken,   // verified server-side; userId/username derived from claims
         version: this.canvasVersion,
       })
       this.startPing()

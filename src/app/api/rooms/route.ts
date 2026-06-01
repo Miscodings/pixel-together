@@ -6,9 +6,11 @@ import type { CanvasSize } from '@/types/canvas'
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 function generateRoomCode(): string {
-  return Array.from({ length: 6 }, () =>
-    CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)],
-  ).join('')
+  // Use CSPRNG — Math.random() is predictable and codes gate room access
+  const { randomInt } = require('crypto') as typeof import('crypto')
+  let out = ''
+  for (let i = 0; i < 8; i++) out += CODE_CHARS[randomInt(0, CODE_CHARS.length)]
+  return out
 }
 
 async function getUniqueRoomCode(supabase: ReturnType<typeof createServerSupabaseClient>): Promise<string> {
