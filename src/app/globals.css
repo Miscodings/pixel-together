@@ -1,26 +1,225 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-nunito);
+  --font-mono: var(--font-jetbrains-mono);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.33);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* PixelTogether Design System */
+:root {
+  --background: #FFF9F0;
+  --foreground: #2D1B4E;
+  --card: #FFFFFF;
+  --card-foreground: #2D1B4E;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D1B4E;
+  --primary: #7C5CBF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F4A261;
+  --secondary-foreground: #2D1B4E;
+  --muted: #EDE0FF;
+  --muted-foreground: #7C6A9E;
+  --accent: #52B788;
+  --accent-foreground: #FFFFFF;
+  --destructive: #E63946;
+  --destructive-foreground: #FFFFFF;
+  --border: #2D1B4E;
+  --input: #EDE0FF;
+  --ring: #7C5CBF;
+  --radius: 12px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Hand-drawn border card system — the signature aesthetic */
+.card-pixel {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0px 0px var(--border);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  cursor: pointer;
+}
+
+.card-pixel:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px var(--border);
+}
+
+.card-pixel:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px var(--border);
+}
+
+/* Button press animation */
+.btn-pixel {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0px 0px var(--border);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+}
+
+.btn-pixel:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px var(--border);
+}
+
+.btn-pixel:active,
+.btn-pixel:focus:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px var(--border);
+}
+
+/* Tool button */
+.tool-btn {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0px 0px var(--border);
+  transition: transform 80ms ease, box-shadow 80ms ease, background-color 80ms ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+}
+
+.tool-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--border);
+}
+
+.tool-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px var(--border);
+}
+
+.tool-btn.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Canvas grid texture */
+.canvas-bg {
+  background-color: #E8E0F5;
+  background-image:
+    linear-gradient(rgba(44, 27, 78, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 27, 78, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Pixel canvas wrapper */
+.canvas-container {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0px 0px var(--border);
+  overflow: hidden;
+  position: relative;
+  background: #FFFFFF;
+}
+
+/* Floating panel */
+.floating-panel {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0px 0px var(--border);
+  background: var(--card);
+  position: absolute;
+  z-index: 30;
+}
+
+/* Daily challenge parchment */
+.parchment-card {
+  background: #FFFBF0;
+  border: 3px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0px 0px var(--border);
+}
+
+/* Leaderboard ribbon classes */
+.ribbon-gold {
+  --ribbon-color: #F4A261;
+}
+.ribbon-silver {
+  --ribbon-color: #C0C0C0;
+}
+.ribbon-bronze {
+  --ribbon-color: #CD7F32;
+}
+
+/* Collaborator cursor */
+.collab-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 50;
+  transition: none;
+  will-change: transform;
+}
+
+/* Nunito wordmark */
+.wordmark {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+/* JetBrains Mono for coords */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Reduced motion — flatten all springs */
+@media (prefers-reduced-motion: reduce) {
+  .card-pixel,
+  .btn-pixel,
+  .tool-btn {
+    transition: none !important;
+  }
+  .card-pixel:hover,
+  .card-pixel:active,
+  .btn-pixel:hover,
+  .btn-pixel:active,
+  .tool-btn:hover,
+  .tool-btn:active {
+    transform: none !important;
+    box-shadow: 3px 3px 0px 0px var(--border) !important;
+  }
 }
