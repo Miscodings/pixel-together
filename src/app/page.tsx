@@ -17,10 +17,14 @@ import {
 function useCreateRoom() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const create = useCallback(async () => {
+  const create = useCallback(async (size: 16 | 32 | 64 = 32) => {
     setLoading(true)
     try {
-      const res = await fetch('/api/rooms', { method: 'POST' })
+      const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ width: size, height: size }),
+      })
       const data = await res.json()
       if (data.roomCode) router.push(`/canvas/${data.roomCode}`)
     } finally {
@@ -33,16 +37,48 @@ function useCreateRoom() {
 function NavbarButtons() {
   const { isSignedIn } = useAuth()
   const { create, loading } = useCreateRoom()
+  const [showSizePicker, setShowSizePicker] = useState(false)
+
   if (isSignedIn) {
     return (
-      <button
-        className="btn-pixel"
-        onClick={create}
-        disabled={loading}
-        style={{ padding: '8px 20px', fontSize: '14px', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
-      >
-        {loading ? 'Creating…' : 'Go to Canvas'}
-      </button>
+      <div style={{ position: 'relative' }}>
+        <button
+          className="btn-pixel"
+          onClick={() => setShowSizePicker(true)}
+          disabled={loading}
+          style={{ padding: '8px 20px', fontSize: '14px', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+        >
+          {loading ? 'Creating…' : 'Go to Canvas'}
+        </button>
+        {showSizePicker && (
+          <div className="card-pixel" style={{
+            position: 'absolute', top: '100%', left: 0, marginTop: '8px',
+            padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px',
+            zIndex: 100, minWidth: '180px', background: 'var(--card)',
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)' }}>
+              Canvas Size
+            </span>
+            {([16, 32, 64] as const).map(size => (
+              <button
+                key={size}
+                className="btn-pixel"
+                onClick={() => { setShowSizePicker(false); create(size) }}
+                disabled={loading}
+                style={{ textAlign: 'left', padding: '8px 12px', fontSize: '13px' }}
+              >
+                {size}×{size} {size === 16 ? '(Tiny)' : size === 32 ? '(Standard)' : '(Large)'}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowSizePicker(false)}
+              style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     )
   }
   return (
@@ -64,17 +100,49 @@ function NavbarButtons() {
 function HeroDrawButton() {
   const { isSignedIn } = useAuth()
   const { create, loading } = useCreateRoom()
+  const [showSizePicker, setShowSizePicker] = useState(false)
+
   if (isSignedIn) {
     return (
-      <button
-        className="btn-pixel"
-        onClick={create}
-        disabled={loading}
-        style={{ padding: '14px 32px', fontSize: '16px', fontWeight: 800, backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '8px' }}
-      >
-        {loading ? 'Creating room…' : 'Start Drawing'}
-        <ArrowRight size={16} />
-      </button>
+      <div style={{ position: 'relative' }}>
+        <button
+          className="btn-pixel"
+          onClick={() => setShowSizePicker(true)}
+          disabled={loading}
+          style={{ padding: '14px 32px', fontSize: '16px', fontWeight: 800, backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          {loading ? 'Creating room…' : 'Start Drawing'}
+          <ArrowRight size={16} />
+        </button>
+        {showSizePicker && (
+          <div className="card-pixel" style={{
+            position: 'absolute', top: '100%', left: 0, marginTop: '8px',
+            padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px',
+            zIndex: 100, minWidth: '180px', background: 'var(--card)',
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)' }}>
+              Canvas Size
+            </span>
+            {([16, 32, 64] as const).map(size => (
+              <button
+                key={size}
+                className="btn-pixel"
+                onClick={() => { setShowSizePicker(false); create(size) }}
+                disabled={loading}
+                style={{ textAlign: 'left', padding: '8px 12px', fontSize: '13px' }}
+              >
+                {size}×{size} {size === 16 ? '(Tiny)' : size === 32 ? '(Standard)' : '(Large)'}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowSizePicker(false)}
+              style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     )
   }
   return (

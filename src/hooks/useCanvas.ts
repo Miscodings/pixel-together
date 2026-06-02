@@ -390,16 +390,81 @@ export function useCanvas(
       clearPreview()
     }
 
+    // ─── Touch helpers ───────────────────────────────────────────────────────
+
+    const getTouchPixelCoords = (touch: Touch) => {
+      return getPixelCoords(
+        { clientX: touch.clientX, clientY: touch.clientY } as MouseEvent,
+        preview,
+      )
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return
+      const touch = e.touches[0]
+      const { x, y } = getTouchPixelCoords(touch)
+      isDrawingRef.current = true
+      strokeRef.current = []
+      lastPixelRef.current = { x, y }
+
+      if (activeTool === 'zoomin') { setZoom(zoom + 1); return }
+      if (activeTool === 'zoomout') { setZoom(zoom - 1); return }
+
+      handleToolAction(x, y, activeTool, activeColor)
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const { x, y } = getTouchPixelCoords(touch)
+      const pc = pixelCanvasRef.current
+
+      if (x >= 0 && x < pc.width && y >= 0 && y < pc.height) {
+        wsRef.current?.sendCursor(x, y)
+      }
+
+      if (!isDrawingRef.current) return
+      const last = lastPixelRef.current
+      if (last && last.x === x && last.y === y) return
+      lastPixelRef.current = { x, y }
+
+      if (activeTool === 'pencil' || activeTool === 'eraser') {
+        const color = activeTool === 'eraser' ? packRGBA(0, 0, 0, 0) : activeColor
+        drawPreviewPixel(x, y, color)
+        handleToolAction(x, y, activeTool, activeColor)
+      }
+    }
+
+    const onTouchEnd = () => {
+      if (!isDrawingRef.current) return
+      isDrawingRef.current = false
+      clearPreview()
+
+      if (strokeRef.current.length > 0) {
+        undoStackRef.current.push({ reverts: [...strokeRef.current] })
+        if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
+        redoStackRef.current = []
+        strokeRef.current = []
+      }
+    }
+
     preview.addEventListener('mousedown', onMouseDown)
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
     preview.addEventListener('mouseleave', onMouseLeave)
+    preview.addEventListener('touchstart', onTouchStart, { passive: false })
+    preview.addEventListener('touchmove', onTouchMove, { passive: false })
+    preview.addEventListener('touchend', onTouchEnd)
 
     return () => {
       preview.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
       preview.removeEventListener('mouseleave', onMouseLeave)
+      preview.removeEventListener('touchstart', onTouchStart)
+      preview.removeEventListener('touchmove', onTouchMove)
+      preview.removeEventListener('touchend', onTouchEnd)
     }
   }, [activeTool, activeColor, zoom, getPixelCoords, drawPreviewPixel, clearPreview, handleToolAction, setZoom])
 

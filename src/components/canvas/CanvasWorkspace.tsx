@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import {
   Download,
@@ -12,6 +12,7 @@ import {
   Users,
   Copy,
   Check,
+  Palette,
 } from 'lucide-react'
 import { useCanvas } from '@/hooks/useCanvas'
 import { LeftToolbar } from './LeftToolbar'
@@ -56,6 +57,17 @@ export function CanvasWorkspace({
   // Shared hex state so HSBColorPicker and PalettePanel stay in sync
   const [syncHex, setSyncHex] = useState<string>('')
   const [showPanels, setShowPanels] = useState(true)
+
+  // Mobile responsive state
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const {
     canvasRef,
@@ -374,17 +386,29 @@ export function CanvasWorkspace({
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
 
-        {/* Toggle panels */}
-        <button
-          className="tool-btn"
-          onClick={() => setShowPanels(p => !p)}
-          title={showPanels ? 'Hide panels' : 'Show panels'}
-          aria-label={showPanels ? 'Hide panels' : 'Show panels'}
-          style={{ fontSize: '11px', fontWeight: 700, width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
-        >
-          <Users size={14} />
-          {showPanels ? '◀' : '▶'}
-        </button>
+        {/* Toggle panels — drawer on mobile, sidebar toggle on desktop */}
+        {isMobile ? (
+          <button
+            className="tool-btn"
+            onClick={() => setMobileDrawerOpen(true)}
+            title="Open panels"
+            aria-label="Open panels"
+            style={{ fontSize: '11px', fontWeight: 700, width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
+          >
+            <Palette size={14} />
+          </button>
+        ) : (
+          <button
+            className="tool-btn"
+            onClick={() => setShowPanels(p => !p)}
+            title={showPanels ? 'Hide panels' : 'Show panels'}
+            aria-label={showPanels ? 'Hide panels' : 'Show panels'}
+            style={{ fontSize: '11px', fontWeight: 700, width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
+          >
+            <Users size={14} />
+            {showPanels ? '◀' : '▶'}
+          </button>
+        )}
       </motion.div>
 
       {/* ─── Middle section: Left Toolbar | Canvas | Right Panels ─────────── */}
@@ -492,8 +516,8 @@ export function CanvasWorkspace({
           </div>
         </div>
 
-        {/* Right panels column */}
-        {showPanels && (
+        {/* Right panels column — desktop only */}
+        {!isMobile && showPanels && (
           <div
             style={{
               width: '272px',
@@ -529,6 +553,96 @@ export function CanvasWorkspace({
         )}
 
       </div>
+
+      {/* ─── Mobile bottom drawer ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isMobile && mobileDrawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="mobile-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileDrawerOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                zIndex: 190,
+              }}
+            />
+
+            {/* Drawer */}
+            <motion.div
+              key="mobile-drawer"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={SPRING}
+              style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                maxHeight: '70vh',
+                overflowY: 'auto',
+                background: 'var(--card)',
+                borderTop: '2px solid var(--border)',
+                borderRadius: '20px 20px 0 0',
+                zIndex: 200,
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              {/* Drawer header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 800, fontSize: '15px', color: 'var(--foreground)' }}>
+                  Panels
+                </span>
+                <button
+                  onClick={() => setMobileDrawerOpen(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    lineHeight: 1,
+                    color: 'var(--muted-foreground)',
+                    padding: '4px 8px',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                  aria-label="Close panels"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <UsersPanel
+                presence={presence}
+                currentUserId={userId}
+                currentUsername={username}
+              />
+              <HSBColorPicker
+                activeColor={activeColor}
+                setActiveColor={setActiveColor}
+                onHexChange={setSyncHex}
+                externalHex={syncHex}
+              />
+              <PalettePanel
+                activeColor={activeColor}
+                setActiveColor={setActiveColor}
+                onSwatchSelect={setSyncHex}
+                externalHex={syncHex}
+              />
+              <HotkeyPanel />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ─── Bottom Bar ──────────────────────────────────────────────────── */}
       <motion.div
