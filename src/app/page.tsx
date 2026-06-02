@@ -89,38 +89,60 @@ function HeroDrawButton() {
 
 function JoinRoomInput() {
   const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [checking, setChecking] = useState(false)
   const router = useRouter()
   const { isSignedIn } = useAuth()
+
+  const join = useCallback(async () => {
+    if (code.length < 6) return
+    setError('')
+    setChecking(true)
+    try {
+      const res = await fetch(`/api/rooms?code=${code}`)
+      if (res.status === 404) { setError('Room not found'); return }
+      if (!res.ok) { setError('Could not join room'); return }
+      router.push(`/canvas/${code}`)
+    } catch {
+      setError('Could not join room')
+    } finally {
+      setChecking(false)
+    }
+  }, [code, router])
+
   if (!isSignedIn) return null
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
-      <input
-        value={code}
-        onChange={e => setCode(e.target.value.toUpperCase())}
-        placeholder="Enter room code"
-        maxLength={8}
-        className="mono"
-        style={{
-          padding: '10px 16px',
-          border: '2px solid var(--border)',
-          borderRadius: '10px',
-          fontSize: '14px',
-          fontFamily: 'JetBrains Mono, monospace',
-          backgroundColor: 'var(--card)',
-          color: 'var(--foreground)',
-          width: '160px',
-          outline: 'none',
-        }}
-        onKeyDown={e => { if (e.key === 'Enter' && code.length >= 6) router.push(`/canvas/${code}`) }}
-      />
-      <button
-        className="btn-pixel"
-        disabled={code.length < 6}
-        onClick={() => router.push(`/canvas/${code}`)}
-        style={{ padding: '10px 20px', fontSize: '14px', backgroundColor: 'var(--card)', color: 'var(--foreground)' }}
-      >
-        Join
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <input
+          value={code}
+          onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
+          placeholder="Enter room code"
+          maxLength={8}
+          className="mono"
+          style={{
+            padding: '10px 16px',
+            border: `2px solid ${error ? 'var(--destructive)' : 'var(--border)'}`,
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontFamily: 'JetBrains Mono, monospace',
+            backgroundColor: 'var(--card)',
+            color: 'var(--foreground)',
+            width: '160px',
+            outline: 'none',
+          }}
+          onKeyDown={e => { if (e.key === 'Enter') join() }}
+        />
+        <button
+          className="btn-pixel"
+          disabled={code.length < 6 || checking}
+          onClick={join}
+          style={{ padding: '10px 20px', fontSize: '14px', backgroundColor: 'var(--card)', color: 'var(--foreground)' }}
+        >
+          {checking ? '…' : 'Join'}
+        </button>
+      </div>
+      {error && <span style={{ fontSize: '13px', color: 'var(--destructive)', fontFamily: 'Nunito, sans-serif' }}>{error}</span>}
     </div>
   )
 }

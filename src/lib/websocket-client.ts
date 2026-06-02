@@ -50,6 +50,7 @@ export class PixelTogetherWS {
 
   async connect(
     roomId: string,
+    roomCode: string,
     userId: string,
     username: string,
     canvasWidth = 32,
@@ -71,7 +72,7 @@ export class PixelTogetherWS {
       const res = await fetch('/api/ws-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomCode: roomId }),
+        body: JSON.stringify({ roomCode }),
       })
       if (!res.ok) throw new Error('token fetch failed')
       const { token } = await res.json() as { token: string }

@@ -67,7 +67,7 @@ export function CanvasWorkspace({
     isConnected,
     exportPNG,
     clearCanvas,
-  } = useCanvas(roomId, userId, username, canvasWidth, canvasHeight)
+  } = useCanvas(roomId, roomCode, userId, username, canvasWidth, canvasHeight)
 
   const pixelW = canvasWidth * zoom
   const pixelH = canvasHeight * zoom
@@ -84,8 +84,11 @@ export function CanvasWorkspace({
     setSize(previewRef.current, pixelW, pixelH)
   }, [pixelW, pixelH, bgRef, canvasRef, previewRef])
 
-  // Initialize sound engine on mount
-  useEffect(() => { soundEngine.init() }, [])
+  // Initialize sound engine on mount and sync muted state
+  useEffect(() => {
+    soundEngine.init()
+    setMuted(soundEngine.isMuted())
+  }, [])
 
   // Mute toggle
   const toggleMute = useCallback(() => {
@@ -104,13 +107,17 @@ export function CanvasWorkspace({
     setTimeout(() => setCodeCopied(false), 2000)
   }, [roomCode])
 
-  // Scroll-wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
+  // Scroll-wheel zoom via non-passive listener (React onWheel is passive, can't preventDefault)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
       e.preventDefault()
-      setZoom(zoom + (e.deltaY < 0 ? 1 : -1))
+      setZoom(z => Math.max(1, Math.min(32, z + (e.deltaY < 0 ? 1 : -1))))
     }
-  }, [zoom, setZoom])
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [setZoom])
 
   // Name editing
   const commitName = useCallback(() => {
@@ -360,7 +367,6 @@ export function CanvasWorkspace({
       {/* ─── Canvas area ─────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
-        onWheel={handleWheel}
         style={{
           flex: 1,
           display: 'flex',

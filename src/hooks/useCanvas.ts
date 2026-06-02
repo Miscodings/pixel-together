@@ -92,6 +92,7 @@ function renderPixelCanvas(
 
 export function useCanvas(
   roomId: string,
+  roomCode: string,
   userId: string,
   username: string,
   initialWidth: CanvasSize = 32,
@@ -365,6 +366,7 @@ export function useCanvas(
 
     ws.connect(
       roomId,
+      roomCode,
       userId,
       username,
       pixelCanvasRef.current.width,
@@ -376,7 +378,7 @@ export function useCanvas(
       ws.disconnect()
       wsRef.current = null
     }
-  }, [roomId, userId, username, redrawMainCanvas])
+  }, [roomId, roomCode, userId, username, redrawMainCanvas])
 
   // ─── Re-render on zoom change ────────────────────────────────────────────
 
@@ -441,7 +443,7 @@ export function useCanvas(
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     },
     [],
   )
