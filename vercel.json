@@ -12,7 +12,7 @@
         { "key": "X-DNS-Prefetch-Control", "value": "off" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com; font-src 'self' data:; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co wss://*.supabase.co https://api.stripe.com wss: ws:; frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://*.justindutta.com https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.justindutta.com; font-src 'self' data:; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.justindutta.com https://*.supabase.co wss://*.supabase.co https://api.stripe.com wss: ws:; frame-src 'self' https://*.clerk.accounts.dev https://*.justindutta.com https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; upgrade-insecure-requests"
         }
       ]
     }
