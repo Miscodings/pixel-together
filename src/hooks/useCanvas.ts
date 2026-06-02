@@ -4,7 +4,6 @@ import { useRef, useState, useEffect, useCallback, type RefObject } from 'react'
 import {
   createCanvas,
   applyPixelUpdate,
-  floodFill,
   serializeCanvas,
   exportAsPNG,
   hexToRGBA,
@@ -275,11 +274,14 @@ export function useCanvas(
             userId,
           }))
 
-          // Apply locally
+          // Apply locally — bypass CRDT; BFS already identified the correct region
           const fillTs = Date.now()
           for (const { x: fx, y: fy } of fillArea) {
-            applyPixelUpdate(pc, { x: fx, y: fy, color: fillColor, ts: fillTs, userId })
+            const idx = fy * pc.width + fx
+            pc.pixels[idx] = fillColor >>> 0
+            pc.timestamps[idx] = fillTs
           }
+          pc.version++
 
           undoStackRef.current.push({ reverts })
           if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
