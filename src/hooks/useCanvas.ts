@@ -354,8 +354,14 @@ export function useCanvas(
     }
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDrawingRef.current) return
       const { x, y } = getPixelCoords(e, preview)
+      const pc = pixelCanvasRef.current
+      // Always broadcast cursor position when hovering over the canvas
+      if (x >= 0 && x < pc.width && y >= 0 && y < pc.height) {
+        wsRef.current?.sendCursor(x, y)
+      }
+
+      if (!isDrawingRef.current) return
       const last = lastPixelRef.current
       if (last && last.x === x && last.y === y) return
       lastPixelRef.current = { x, y }
@@ -364,7 +370,6 @@ export function useCanvas(
         const color = activeTool === 'eraser' ? packRGBA(0, 0, 0, 0) : activeColor
         drawPreviewPixel(x, y, color)
         handleToolAction(x, y, activeTool, activeColor)
-        wsRef.current?.sendCursor(x, y)
       }
     }
 

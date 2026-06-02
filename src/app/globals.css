@@ -151,9 +151,15 @@
   border: 2px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 4px 4px 0px 0px var(--border);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   background: #FFFFFF;
+}
+/* Clip canvas layers to rounded corners without clipping cursor overlays */
+.canvas-container > canvas,
+.canvas-container > div.canvas-clip {
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 /* Floating panel */

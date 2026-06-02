@@ -421,73 +421,75 @@ export function CanvasWorkspace({
             minWidth: 0,
           }}
         >
-          {/* Layered canvas */}
-          <motion.div
-            initial={shouldReduce ? false : { scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={SPRING}
-            className="canvas-container"
-            style={{ width: pixelW, height: pixelH, flexShrink: 0 }}
-          >
-            {/* Layer 0: checkerboard */}
-            <canvas
-              ref={bgRef}
-              width={pixelW}
-              height={pixelH}
-              style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
-            />
+          {/* Layered canvas — cursor overlay is a sibling to avoid overflow:hidden clipping */}
+          <div style={{ position: 'relative', width: pixelW, height: pixelH, flexShrink: 0 }}>
+            <motion.div
+              initial={shouldReduce ? false : { scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={SPRING}
+              className="canvas-container"
+              style={{ width: pixelW, height: pixelH, position: 'absolute', top: 0, left: 0 }}
+            >
+              {/* Layer 0: checkerboard */}
+              <canvas
+                ref={bgRef}
+                width={pixelW}
+                height={pixelH}
+                style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
+              />
 
-            {/* Layer 1: pixel state */}
-            <canvas
-              ref={canvasRef}
-              width={pixelW}
-              height={pixelH}
-              style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
-            />
+              {/* Layer 1: pixel state */}
+              <canvas
+                ref={canvasRef}
+                width={pixelW}
+                height={pixelH}
+                style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
+              />
 
-            {/* Layer 2: local preview */}
-            <canvas
-              ref={previewRef}
-              width={pixelW}
-              height={pixelH}
-              style={{
-                position: 'absolute', top: 0, left: 0,
-                imageRendering: 'pixelated',
-                cursor: activeTool === 'eyedropper'
-                  ? 'crosshair'
-                  : activeTool === 'fill'
-                  ? 'cell'
-                  : activeTool === 'eraser'
-                  ? 'not-allowed'
-                  : 'crosshair',
-              }}
-            />
-
-            {/* Layer 3: grid overlay */}
-            {zoom >= 4 && (
-              <div
+              {/* Layer 2: local preview */}
+              <canvas
+                ref={previewRef}
+                width={pixelW}
+                height={pixelH}
                 style={{
                   position: 'absolute', top: 0, left: 0,
-                  width: '100%', height: '100%',
-                  backgroundImage: `
-                    linear-gradient(rgba(45,27,78,0.15) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(45,27,78,0.15) 1px, transparent 1px)
-                  `,
-                  backgroundSize: `${zoom}px ${zoom}px`,
-                  pointerEvents: 'none',
+                  imageRendering: 'pixelated',
+                  cursor: activeTool === 'eyedropper'
+                    ? 'crosshair'
+                    : activeTool === 'fill'
+                    ? 'cell'
+                    : activeTool === 'eraser'
+                    ? 'not-allowed'
+                    : 'crosshair',
                 }}
               />
-            )}
 
-            {/* Layer 4: cursor overlay */}
+              {/* Layer 3: grid overlay */}
+              {zoom >= 4 && (
+                <div
+                  style={{
+                    position: 'absolute', top: 0, left: 0,
+                    width: '100%', height: '100%',
+                    backgroundImage: `
+                      linear-gradient(rgba(45,27,78,0.15) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(45,27,78,0.15) 1px, transparent 1px)
+                    `,
+                    backgroundSize: `${zoom}px ${zoom}px`,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+            </motion.div>
+
+            {/* Layer 4: cursor overlay — outside canvas-container so overflow:hidden doesn't clip it */}
             <div
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 50, overflow: 'visible' }}
             >
               {presence.map((user) => (
                 <CollabCursor key={user.userId} user={user} zoom={zoom} />
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Right panels column */}
