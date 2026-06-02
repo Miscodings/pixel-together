@@ -1,7 +1,4 @@
 {
-  "env": {
-    "NEXT_PUBLIC_WS_URL": "@ws_url"
-  },
   "headers": [
     {
       "source": "/(.*)",
