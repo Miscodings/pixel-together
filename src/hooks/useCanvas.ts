@@ -12,6 +12,7 @@ import {
   packRGBA,
 } from '@/lib/canvas-engine'
 import { PixelTogetherWS } from '@/lib/websocket-client'
+import { soundEngine } from '@/components/sound/SoundEngine'
 import type {
   PixelCanvas,
   PixelUpdate,
@@ -145,7 +146,7 @@ export function useCanvas(
   // ─── Zoom ───────────────────────────────────────────────────────────────
 
   const setZoom = useCallback((z: number) => {
-    const clamped = Math.max(1, Math.min(16, z))
+    const clamped = Math.max(1, Math.min(32, z))
     zoomRef.current = clamped
     setZoomState(clamped)
   }, [])
@@ -209,6 +210,7 @@ export function useCanvas(
         strokeRef.current.push({ x, y, color: prevColor, ts: prevTs, userId })
         ws.sendPixel(x, y, color)
         redrawMainCanvas()
+        soundEngine.playPixelTick()
       }
     },
     [userId, redrawMainCanvas],
@@ -249,6 +251,7 @@ export function useCanvas(
               wsRef.current?.sendPixel(u.x, u.y, u.color)
             }
             redrawMainCanvas()
+            soundEngine.playFillWhoosh()
           }
           break
         }
@@ -409,6 +412,7 @@ export function useCanvas(
     redoStackRef.current.push({ reverts: reapplyReverts })
     wsRef.current?.sendUndo(entry.reverts)
     redrawMainCanvas()
+    soundEngine.playUndo()
   }, [userId, redrawMainCanvas])
 
   const redo = useCallback(() => {
@@ -435,15 +439,34 @@ export function useCanvas(
 
   const exportPNG = useCallback(
     (scale: 1 | 4 | 8) => {
-      const blob = exportAsPNG(pixelCanvasRef.current, scale)
-      const url = URL.createObjectURL(blob)
+      const { width, height, pixels } = pixelCanvasRef.current
+      const scaledW = width * scale
+      const scaledH = height * scale
+      const htmlCanvas = document.createElement('canvas')
+      htmlCanvas.width = scaledW
+      htmlCanvas.height = scaledH
+      const ctx = htmlCanvas.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      // Draw each pixel as a scaled rect
+      for (let py = 0; py < height; py++) {
+        for (let px = 0; px < width; px++) {
+          const color = pixels[py * width + px] >>> 0
+          if (color === 0) continue
+          const r = (color >>> 24) & 0xff
+          const g = (color >>> 16) & 0xff
+          const b = (color >>> 8) & 0xff
+          const a = (color & 0xff) / 255
+          ctx.fillStyle = `rgba(${r},${g},${b},${a})`
+          ctx.fillRect(px * scale, py * scale, scale, scale)
+        }
+      }
+      const dataURL = htmlCanvas.toDataURL('image/png')
       const a = document.createElement('a')
-      a.href = url
+      a.href = dataURL
       a.download = `pixeltogether-${Date.now()}.png`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
     },
     [],
   )
