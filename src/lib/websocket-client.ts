@@ -13,6 +13,7 @@ const PING_INTERVAL = 25000
 type MessageType =
   | { type: 'sync'; pixels: string; timestamps: string; version: number; presence: UserPresence[] }
   | { type: 'pixel'; x: number; y: number; color: number; ts: number; userId: string }
+  | { type: 'clear'; ts: number }
   | { type: 'presence'; users: UserPresence[] }
   | { type: 'join'; user: UserPresence }
   | { type: 'leave'; userId: string }
@@ -43,6 +44,7 @@ export class PixelTogetherWS {
   onUserLeave: (userId: string) => void = () => {}
   onConnected: () => void = () => {}
   onDisconnected: () => void = () => {}
+  onClear: (ts: number) => void = () => {}
 
   constructor() {
     this.clock = new LamportClock(
@@ -212,11 +214,20 @@ export class PixelTogetherWS {
         this.onUserLeave(msg.userId)
         break
       }
+      case 'clear': {
+        this.onClear(msg.ts)
+        break
+      }
       case 'pong': {
         // alive
         break
       }
     }
+  }
+
+  sendClear(): void {
+    const ts = this.clock.tick()
+    this.sendRaw({ type: 'clear', ts })
   }
 
   sendPixel(x: number, y: number, color: number): void {

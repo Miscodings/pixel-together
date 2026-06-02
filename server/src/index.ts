@@ -593,6 +593,19 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
     return
   }
 
+  // clear
+  // ------------------------------------------------------------------
+  if (type === 'clear') {
+    const ts = typeof msg.ts === 'number' && Number.isFinite(msg.ts) ? msg.ts : Date.now()
+    const { width, height } = room.canvas
+    room.canvas.pixels.fill(0)
+    room.canvas.timestamps.fill(ts)
+    room.canvas.version++
+    room.dirty = true
+    broadcastRoom(room, { type: 'clear', ts }, ws)
+    return
+  }
+
   send(ws, { type: 'error', message: `Unknown message type: ${String(type)}` })
 }
 

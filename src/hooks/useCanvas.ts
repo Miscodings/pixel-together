@@ -370,6 +370,14 @@ export function useCanvas(
         setPresence((prev) => prev.filter((u) => u.userId !== leavingUserId))
       }
 
+      ws.onClear = (ts: number) => {
+        const pc = pixelCanvasRef.current
+        pc.pixels.fill(0)
+        pc.timestamps.fill(ts)
+        pc.version++
+        redrawMainCanvas()
+      }
+
       ws.connect(
         roomId,
         roomCode,
@@ -503,15 +511,7 @@ export function useCanvas(
     undoStackRef.current.push({ reverts })
     if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
 
-    // Broadcast each pixel
-    const ws = wsRef.current
-    if (ws) {
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          ws.sendPixel(x, y, 0)
-        }
-      }
-    }
+    wsRef.current?.sendClear()
 
     redrawMainCanvas()
   }, [userId, redrawMainCanvas])
