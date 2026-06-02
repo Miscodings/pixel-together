@@ -513,13 +513,17 @@ export function useCanvas(
           ctx.fillRect(px * scale, py * scale, scale, scale)
         }
       }
-      const dataURL = htmlCanvas.toDataURL('image/png')
-      const a = document.createElement('a')
-      a.href = dataURL
-      a.download = `pixeltogether-${Date.now()}.png`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      htmlCanvas.toBlob((blob) => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `pixeltogether-${Date.now()}.png`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(url), 2000)
+      }, 'image/png')
     },
     [],
   )

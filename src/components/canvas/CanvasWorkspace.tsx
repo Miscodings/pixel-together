@@ -7,8 +7,6 @@ import {
   Download,
   Volume2,
   VolumeX,
-  Undo2,
-  Redo2,
   ZoomIn,
   ZoomOut,
   Users,
@@ -16,7 +14,10 @@ import {
   Check,
 } from 'lucide-react'
 import { useCanvas } from '@/hooks/useCanvas'
-import { DraggableToolPalette } from './DraggableToolPalette'
+import { LeftToolbar } from './LeftToolbar'
+import { HSBColorPicker } from './HSBColorPicker'
+import { PalettePanel } from './PalettePanel'
+import { HotkeyPanel } from './HotkeyPanel'
 import { CollabCursor } from './CollabCursor'
 import { soundEngine } from '@/components/sound/SoundEngine'
 import type { CanvasSize } from '@/types/canvas'
@@ -49,7 +50,10 @@ export function CanvasWorkspace({
   const [codeCopied, setCodeCopied] = useState(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  const canvasAreaRef = useRef<HTMLDivElement | null>(null)
+
+  // Shared hex state so HSBColorPicker and PalettePanel stay in sync
+  const [syncHex, setSyncHex] = useState<string>('')
 
   const {
     canvasRef,
@@ -107,11 +111,11 @@ export function CanvasWorkspace({
     setTimeout(() => setCodeCopied(false), 2000)
   }, [roomCode])
 
-  // Scroll-wheel zoom via non-passive listener (React onWheel is passive, can't preventDefault)
+  // Scroll-wheel zoom via non-passive listener
   const zoomRef = useRef(zoom)
   useEffect(() => { zoomRef.current = zoom }, [zoom])
   useEffect(() => {
-    const el = containerRef.current
+    const el = canvasAreaRef.current
     if (!el) return
     const handler = (e: WheelEvent) => {
       e.preventDefault()
@@ -140,12 +144,13 @@ export function CanvasWorkspace({
       if (e.target instanceof HTMLInputElement) return
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo() }
-      if (e.key === '+' || e.key === '=') setZoom(zoom + 1)
-      if (e.key === '-') setZoom(zoom - 1)
-      if (e.key === 'p') setActiveTool('pencil')
-      if (e.key === 'e') setActiveTool('eraser')
-      if (e.key === 'f') setActiveTool('fill')
-      if (e.key === 'i') setActiveTool('eyedropper')
+      if (e.key === '+' || e.key === '=') setZoom(Math.min(32, zoom + 1))
+      if (e.key === '-') setZoom(Math.max(1, zoom - 1))
+      // Tool shortcuts — both lower and upper case
+      if (e.key === 'b' || e.key === 'B') setActiveTool('pencil')
+      if (e.key === 'e' || e.key === 'E') setActiveTool('eraser')
+      if (e.key === 'g' || e.key === 'G') setActiveTool('fill')
+      if (e.key === 'i' || e.key === 'I') setActiveTool('eyedropper')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -366,96 +371,134 @@ export function CanvasWorkspace({
         </button>
       </motion.div>
 
-      {/* ─── Canvas area ─────────────────────────────────────────────────── */}
+      {/* ─── Middle section: Left Toolbar | Canvas | Right Panels ─────────── */}
       <div
-        ref={containerRef}
         style={{
           flex: 1,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'auto',
-          position: 'relative',
+          flexDirection: 'row',
+          overflow: 'hidden',
+          minHeight: 0,
         }}
       >
-        {/* Tool palette */}
-        <DraggableToolPalette
+        {/* Left Toolbar */}
+        <LeftToolbar
           activeTool={activeTool}
-          setActiveTool={(t) => {
-            if (t === 'clear') { clearCanvas(); return }
-            setActiveTool(t)
-          }}
-          activeColor={activeColor}
-          setActiveColor={setActiveColor}
+          setActiveTool={setActiveTool}
+          onClear={clearCanvas}
+          onUndo={undo}
+          onRedo={redo}
         />
 
-        {/* Layered canvas */}
-        <motion.div
-          initial={shouldReduce ? false : { scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={SPRING}
-          className="canvas-container"
-          style={{ width: pixelW, height: pixelH, flexShrink: 0 }}
+        {/* Canvas area */}
+        <div
+          ref={canvasAreaRef}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto',
+            position: 'relative',
+            minWidth: 0,
+          }}
         >
-          {/* Layer 0: checkerboard */}
-          <canvas
-            ref={bgRef}
-            width={pixelW}
-            height={pixelH}
-            style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
-          />
+          {/* Layered canvas */}
+          <motion.div
+            initial={shouldReduce ? false : { scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={SPRING}
+            className="canvas-container"
+            style={{ width: pixelW, height: pixelH, flexShrink: 0 }}
+          >
+            {/* Layer 0: checkerboard */}
+            <canvas
+              ref={bgRef}
+              width={pixelW}
+              height={pixelH}
+              style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
+            />
 
-          {/* Layer 1: pixel state */}
-          <canvas
-            ref={canvasRef}
-            width={pixelW}
-            height={pixelH}
-            style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
-          />
+            {/* Layer 1: pixel state */}
+            <canvas
+              ref={canvasRef}
+              width={pixelW}
+              height={pixelH}
+              style={{ position: 'absolute', top: 0, left: 0, imageRendering: 'pixelated' }}
+            />
 
-          {/* Layer 2: local preview */}
-          <canvas
-            ref={previewRef}
-            width={pixelW}
-            height={pixelH}
-            style={{
-              position: 'absolute', top: 0, left: 0,
-              imageRendering: 'pixelated',
-              cursor: activeTool === 'eyedropper'
-                ? 'crosshair'
-                : activeTool === 'fill'
-                ? 'cell'
-                : activeTool === 'eraser'
-                ? 'not-allowed'
-                : 'crosshair',
-            }}
-          />
-
-          {/* Layer 3: grid overlay */}
-          {zoom >= 4 && (
-            <div
+            {/* Layer 2: local preview */}
+            <canvas
+              ref={previewRef}
+              width={pixelW}
+              height={pixelH}
               style={{
                 position: 'absolute', top: 0, left: 0,
-                width: '100%', height: '100%',
-                backgroundImage: `
-                  linear-gradient(rgba(45,27,78,0.15) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(45,27,78,0.15) 1px, transparent 1px)
-                `,
-                backgroundSize: `${zoom}px ${zoom}px`,
-                pointerEvents: 'none',
+                imageRendering: 'pixelated',
+                cursor: activeTool === 'eyedropper'
+                  ? 'crosshair'
+                  : activeTool === 'fill'
+                  ? 'cell'
+                  : activeTool === 'eraser'
+                  ? 'not-allowed'
+                  : 'crosshair',
               }}
             />
-          )}
 
-          {/* Layer 4: cursor overlay */}
-          <div
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-          >
-            {presence.map((user) => (
-              <CollabCursor key={user.userId} user={user} zoom={zoom} />
-            ))}
-          </div>
-        </motion.div>
+            {/* Layer 3: grid overlay */}
+            {zoom >= 4 && (
+              <div
+                style={{
+                  position: 'absolute', top: 0, left: 0,
+                  width: '100%', height: '100%',
+                  backgroundImage: `
+                    linear-gradient(rgba(45,27,78,0.15) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(45,27,78,0.15) 1px, transparent 1px)
+                  `,
+                  backgroundSize: `${zoom}px ${zoom}px`,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+
+            {/* Layer 4: cursor overlay */}
+            <div
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            >
+              {presence.map((user) => (
+                <CollabCursor key={user.userId} user={user} zoom={zoom} />
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right panels column */}
+        <div
+          style={{
+            width: '220px',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            padding: '12px 12px 12px 8px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
+          <HSBColorPicker
+            activeColor={activeColor}
+            setActiveColor={setActiveColor}
+            onHexChange={setSyncHex}
+            externalHex={syncHex}
+          />
+          <PalettePanel
+            activeColor={activeColor}
+            setActiveColor={setActiveColor}
+            onSwatchSelect={setSyncHex}
+            externalHex={syncHex}
+          />
+          <HotkeyPanel />
+        </div>
       </div>
 
       {/* ─── Bottom Bar ──────────────────────────────────────────────────── */}
@@ -483,33 +526,10 @@ export function CanvasWorkspace({
 
         <div style={{ flex: 1 }} />
 
-        {/* Undo/Redo */}
-        <button
-          className="tool-btn"
-          onClick={undo}
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
-          style={{ width: '36px', height: '36px' }}
-        >
-          <Undo2 size={16} />
-        </button>
-        <button
-          className="tool-btn"
-          onClick={redo}
-          title="Redo (Ctrl+Y)"
-          aria-label="Redo"
-          style={{ width: '36px', height: '36px' }}
-        >
-          <Redo2 size={16} />
-        </button>
-
-        {/* Divider */}
-        <div style={{ width: '2px', height: '24px', backgroundColor: 'var(--border)', borderRadius: '1px' }} />
-
         {/* Zoom controls */}
         <button
           className="tool-btn"
-          onClick={() => setZoom(zoom - 1)}
+          onClick={() => setZoom(Math.max(1, zoom - 1))}
           title="Zoom Out (-)"
           aria-label="Zoom Out"
           style={{ width: '36px', height: '36px' }}
@@ -526,7 +546,7 @@ export function CanvasWorkspace({
 
         <button
           className="tool-btn"
-          onClick={() => setZoom(zoom + 1)}
+          onClick={() => setZoom(Math.min(32, zoom + 1))}
           title="Zoom In (+)"
           aria-label="Zoom In"
           style={{ width: '36px', height: '36px' }}
