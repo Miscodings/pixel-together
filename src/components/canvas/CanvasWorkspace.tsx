@@ -108,12 +108,14 @@ export function CanvasWorkspace({
   }, [roomCode])
 
   // Scroll-wheel zoom via non-passive listener (React onWheel is passive, can't preventDefault)
+  const zoomRef = useRef(zoom)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const handler = (e: WheelEvent) => {
       e.preventDefault()
-      setZoom(z => Math.max(1, Math.min(32, z + (e.deltaY < 0 ? 1 : -1))))
+      setZoom(Math.max(1, Math.min(32, zoomRef.current + (e.deltaY < 0 ? 1 : -1))))
     }
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
