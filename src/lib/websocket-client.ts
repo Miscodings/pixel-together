@@ -243,8 +243,11 @@ export class PixelTogetherWS {
     this.sendRaw({ type: 'fill', targetColor: targetColor >>> 0, pixels: pixels.map(p => ({ ...p, ts })) })
   }
 
-  sendPixel(x: number, y: number, color: number): void {
-    const ts = this.clock.tick()
+  tick(): number {
+    return this.clock.tick()
+  }
+
+  sendPixel(x: number, y: number, color: number, ts: number): void {
     this.sendRaw({ type: 'pixel', x, y, color, ts })
   }
 

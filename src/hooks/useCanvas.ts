@@ -209,7 +209,8 @@ export function useCanvas(
       if (!wsRef.current) return
 
       const ws = wsRef.current
-      const ts = Date.now()
+      // Use the same Lamport ts for both local apply and network send — keeps client/server in sync
+      const ts = ws.tick()
 
       const prevColor = pc.pixels[y * pc.width + x] >>> 0
       const prevTs = pc.timestamps[y * pc.width + x]
@@ -218,7 +219,7 @@ export function useCanvas(
       const applied = applyPixelUpdate(pc, update)
       if (applied) {
         strokeRef.current.push({ x, y, color: prevColor, ts: prevTs, userId })
-        ws.sendPixel(x, y, color)
+        ws.sendPixel(x, y, color, ts)
         redrawMainCanvas()
         soundEngine.playPixelTick()
       }

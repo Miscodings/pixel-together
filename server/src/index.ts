@@ -595,11 +595,14 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
         return
       }
 
+      const idx = (revert.y as number) * room.canvas.width + (revert.x as number)
       const update: PixelUpdate = {
         x: revert.x as number,
         y: revert.y as number,
         color: revert.color as number,
-        ts: Date.now() + 60000, // 1 min ahead: guaranteed > any Lamport-clock fill ts, within MAX_SKEW ceiling
+        // Use current server ts + 1: guaranteed to win over the stroke being undone,
+        // but doesn't lock the pixel for an arbitrary future window.
+        ts: room.canvas.timestamps[idx] + 1,
         userId: presence.userId,
       }
 
