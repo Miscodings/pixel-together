@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import Link from 'next/link'
 import {
   Download,
   Volume2,
@@ -83,11 +84,17 @@ export function CanvasWorkspace({
     setSize(previewRef.current, pixelW, pixelH)
   }, [pixelW, pixelH, bgRef, canvasRef, previewRef])
 
+  // Initialize sound engine on mount
+  useEffect(() => { soundEngine.init() }, [])
+
   // Mute toggle
   const toggleMute = useCallback(() => {
     const next = !muted
     setMuted(next)
     soundEngine.setMuted(next)
+    if (next === false) {
+      import('tone').then((Tone) => Tone.start())
+    }
   }, [muted])
 
   // Copy room code
@@ -96,6 +103,14 @@ export function CanvasWorkspace({
     setCodeCopied(true)
     setTimeout(() => setCodeCopied(false), 2000)
   }, [roomCode])
+
+  // Scroll-wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      setZoom(zoom + (e.deltaY < 0 ? 1 : -1))
+    }
+  }, [zoom, setZoom])
 
   // Name editing
   const commitName = useCallback(() => {
@@ -157,9 +172,13 @@ export function CanvasWorkspace({
         }}
       >
         {/* Wordmark */}
-        <span className="wordmark" style={{ fontSize: '18px', color: 'var(--primary)' }}>
+        <Link
+          href="/"
+          className="wordmark"
+          style={{ fontSize: '18px', color: 'var(--primary)', textDecoration: 'none', cursor: 'pointer' }}
+        >
           PT
-        </span>
+        </Link>
 
         {/* Canvas name */}
         {editingName ? (
@@ -341,6 +360,7 @@ export function CanvasWorkspace({
       {/* ─── Canvas area ─────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
+        onWheel={handleWheel}
         style={{
           flex: 1,
           display: 'flex',

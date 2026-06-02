@@ -87,6 +87,44 @@ function HeroDrawButton() {
   )
 }
 
+function JoinRoomInput() {
+  const [code, setCode] = useState('')
+  const router = useRouter()
+  const { isSignedIn } = useAuth()
+  if (!isSignedIn) return null
+  return (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
+      <input
+        value={code}
+        onChange={e => setCode(e.target.value.toUpperCase())}
+        placeholder="Enter room code"
+        maxLength={8}
+        className="mono"
+        style={{
+          padding: '10px 16px',
+          border: '2px solid var(--border)',
+          borderRadius: '10px',
+          fontSize: '14px',
+          fontFamily: 'JetBrains Mono, monospace',
+          backgroundColor: 'var(--card)',
+          color: 'var(--foreground)',
+          width: '160px',
+          outline: 'none',
+        }}
+        onKeyDown={e => { if (e.key === 'Enter' && code.length >= 6) router.push(`/canvas/${code}`) }}
+      />
+      <button
+        className="btn-pixel"
+        disabled={code.length < 6}
+        onClick={() => router.push(`/canvas/${code}`)}
+        style={{ padding: '10px 20px', fontSize: '14px', backgroundColor: 'var(--card)', color: 'var(--foreground)' }}
+      >
+        Join
+      </button>
+    </div>
+  )
+}
+
 const SPRING = { type: 'spring' as const, stiffness: 400, damping: 25 }
 const SPRING_SLOW = { type: 'spring' as const, stiffness: 300, damping: 20 }
 
@@ -263,23 +301,26 @@ function Hero() {
         initial={shouldReduce ? false : { y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ ...SPRING, delay: 0.15 }}
-        style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}
       >
-        <HeroDrawButton />
-        <Link href="#demo">
-          <button
-            className="btn-pixel"
-            style={{
-              padding: '14px 32px',
-              fontSize: '16px',
-              fontWeight: 800,
-              backgroundColor: 'transparent',
-              color: 'var(--foreground)',
-            }}
-          >
-            See it live
-          </button>
-        </Link>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <HeroDrawButton />
+          <Link href="#demo">
+            <button
+              className="btn-pixel"
+              style={{
+                padding: '14px 32px',
+                fontSize: '16px',
+                fontWeight: 800,
+                backgroundColor: 'transparent',
+                color: 'var(--foreground)',
+              }}
+            >
+              See it live
+            </button>
+          </Link>
+        </div>
+        <JoinRoomInput />
       </motion.div>
 
       {/* Demo canvas */}
