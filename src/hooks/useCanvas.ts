@@ -336,49 +336,54 @@ export function useCanvas(
   useEffect(() => {
     if (!roomId || !userId) return
 
-    const ws = new PixelTogetherWS()
-    wsRef.current = ws
+    // Delay connection so Next.js streaming mount/unmount cycles settle first
+    let ws: PixelTogetherWS | null = null
+    const timer = setTimeout(() => {
+      ws = new PixelTogetherWS()
+      wsRef.current = ws
 
-    ws.onConnected = () => setIsConnected(true)
-    ws.onDisconnected = () => setIsConnected(false)
+      ws.onConnected = () => setIsConnected(true)
+      ws.onDisconnected = () => setIsConnected(false)
 
-    ws.onCanvasSync = (syncedCanvas: PixelCanvas) => {
-      pixelCanvasRef.current = syncedCanvas
-      redrawMainCanvas()
-    }
+      ws.onCanvasSync = (syncedCanvas: PixelCanvas) => {
+        pixelCanvasRef.current = syncedCanvas
+        redrawMainCanvas()
+      }
 
-    ws.onPixelUpdate = (update: PixelUpdate) => {
-      applyPixelUpdate(pixelCanvasRef.current, update)
-      redrawMainCanvas()
-    }
+      ws.onPixelUpdate = (update: PixelUpdate) => {
+        applyPixelUpdate(pixelCanvasRef.current, update)
+        redrawMainCanvas()
+      }
 
-    ws.onPresenceUpdate = (users: UserPresence[]) => {
-      setPresence(users.filter((u) => u.userId !== userId))
-    }
+      ws.onPresenceUpdate = (users: UserPresence[]) => {
+        setPresence(users.filter((u) => u.userId !== userId))
+      }
 
-    ws.onUserJoin = (user: UserPresence) => {
-      setPresence((prev) => {
-        if (prev.some((u) => u.userId === user.userId)) return prev
-        return [...prev, user]
-      })
-    }
+      ws.onUserJoin = (user: UserPresence) => {
+        setPresence((prev) => {
+          if (prev.some((u) => u.userId === user.userId)) return prev
+          return [...prev, user]
+        })
+      }
 
-    ws.onUserLeave = (leavingUserId: string) => {
-      setPresence((prev) => prev.filter((u) => u.userId !== leavingUserId))
-    }
+      ws.onUserLeave = (leavingUserId: string) => {
+        setPresence((prev) => prev.filter((u) => u.userId !== leavingUserId))
+      }
 
-    ws.connect(
-      roomId,
-      roomCode,
-      userId,
-      username,
-      pixelCanvasRef.current.width,
-      pixelCanvasRef.current.height,
-      pixelCanvasRef.current.version,
-    )
+      ws.connect(
+        roomId,
+        roomCode,
+        userId,
+        username,
+        pixelCanvasRef.current.width,
+        pixelCanvasRef.current.height,
+        pixelCanvasRef.current.version,
+      )
+    }, 300)
 
     return () => {
-      ws.disconnect()
+      clearTimeout(timer)
+      ws?.disconnect()
       wsRef.current = null
     }
   }, [roomId, roomCode, userId, username, redrawMainCanvas])
