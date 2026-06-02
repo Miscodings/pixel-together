@@ -432,9 +432,13 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
     // regardless of version parity — version 0 on both sides still means the
     // client needs the authoritative pixel/timestamp arrays (which may be
     // non-empty if the room was loaded from the database).
+    // width and height are included so the client can deserialize with the
+    // correct dimensions regardless of what it was initialized with.
     const serialized = serializeCanvas(room.canvas)
     send(ws, {
       type: 'sync',
+      width: room.canvas.width,
+      height: room.canvas.height,
       pixels: serialized.pixels,
       timestamps: serialized.timestamps,
       version: room.canvas.version,
@@ -527,6 +531,11 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
       send(ws, { type: 'error', message: 'Fill payload too large' })
       return
     }
+    const targetColor = msg.targetColor
+    if (!isValidUint32(targetColor)) {
+      send(ws, { type: 'error', message: 'Invalid fill targetColor' })
+      return
+    }
     const MAX_SKEW = 5 * 60 * 1000
     const ceiling = Date.now() + MAX_SKEW
     let anyApplied = false
@@ -539,6 +548,8 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
         !isValidUint32(p.color) ||
         !isValidTs(p.ts)
       ) continue
+      const idx = (p.y as number) * room.canvas.width + (p.x as number)
+      if ((room.canvas.pixels[idx] >>> 0) !== (targetColor as number)) continue
       const safeTs = Math.min(p.ts as number, ceiling)
       const update: PixelUpdate = { x: p.x as number, y: p.y as number, color: p.color as number, ts: safeTs, userId: presence.userId }
       if (applyPixelUpdate(room.canvas, update)) {
@@ -564,7 +575,6 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
       return
     }
 
-    const now = Date.now()
     let anyApplied = false
 
     for (const revert of reverts) {
@@ -589,7 +599,7 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
         x: revert.x as number,
         y: revert.y as number,
         color: revert.color as number,
-        ts: now, // use current time so the undo wins over the original
+        ts: Date.now() + 60000, // 1 min ahead: guaranteed > any Lamport-clock fill ts, within MAX_SKEW ceiling
         userId: presence.userId,
       }
 

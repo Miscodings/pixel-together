@@ -287,7 +287,7 @@ export function useCanvas(
           if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
           redoStackRef.current = []
 
-          wsRef.current?.sendFill(fillArea.map(({ x: fx, y: fy }) => ({ x: fx, y: fy, color: fillColor })))
+          wsRef.current?.sendFill(fillArea.map(({ x: fx, y: fy }) => ({ x: fx, y: fy, color: fillColor })), targetColor)
           redrawMainCanvas()
           soundEngine.playFillWhoosh()
           break

@@ -11,7 +11,7 @@ const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000]
 const PING_INTERVAL = 25000
 
 type MessageType =
-  | { type: 'sync'; pixels: string; timestamps: string; version: number; presence: UserPresence[] }
+  | { type: 'sync'; width?: number; height?: number; pixels: string; timestamps: string; version: number; presence: UserPresence[] }
   | { type: 'pixel'; x: number; y: number; color: number; ts: number; userId: string }
   | { type: 'clear'; ts: number }
   | { type: 'presence'; users: UserPresence[] }
@@ -149,9 +149,17 @@ export class PixelTogetherWS {
   private handleMessage(msg: MessageType): void {
     switch (msg.type) {
       case 'sync': {
+        // Use server-supplied dimensions when present so the client always
+        // deserializes with the correct width/height regardless of what it was
+        // initialized with. Mismatched dimensions (e.g. client=32 vs server=64)
+        // produce the "every other row" vertical-stretch artifact.
+        const syncWidth = (typeof msg.width === 'number' && msg.width > 0) ? msg.width : this.canvasWidth
+        const syncHeight = (typeof msg.height === 'number' && msg.height > 0) ? msg.height : this.canvasHeight
+        this.canvasWidth = syncWidth
+        this.canvasHeight = syncHeight
         const canvas = deserializeCanvas(
-          this.canvasWidth,
-          this.canvasHeight,
+          syncWidth,
+          syncHeight,
           msg.pixels,
           msg.timestamps,
         )
@@ -230,9 +238,9 @@ export class PixelTogetherWS {
     this.sendRaw({ type: 'clear', ts })
   }
 
-  sendFill(pixels: { x: number; y: number; color: number }[]): void {
+  sendFill(pixels: { x: number; y: number; color: number }[], targetColor: number): void {
     const ts = this.clock.tick()
-    this.sendRaw({ type: 'fill', pixels: pixels.map(p => ({ ...p, ts })) })
+    this.sendRaw({ type: 'fill', targetColor: targetColor >>> 0, pixels: pixels.map(p => ({ ...p, ts })) })
   }
 
   sendPixel(x: number, y: number, color: number): void {
