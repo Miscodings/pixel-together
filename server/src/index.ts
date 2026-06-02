@@ -57,7 +57,7 @@ export const PRESENCE_COLORS = [
   '#457B9D', '#E9C46A', '#F77F00', '#2A9D8F',
 ]
 
-const PORT = parseInt(process.env.PORT ?? '3001', 10)
+const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10)
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ''
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 const APP_ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:3000'
