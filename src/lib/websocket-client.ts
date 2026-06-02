@@ -32,6 +32,7 @@ export class PixelTogetherWS {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private pingTimer: ReturnType<typeof setInterval> | null = null
   private intentionalClose: boolean = false
+  private connectAbort: AbortController | null = null
 
   // Public callbacks
   onPixelUpdate: (update: PixelUpdate) => void = () => {}
@@ -66,23 +67,27 @@ export class PixelTogetherWS {
     this.intentionalClose = false
     this.clock = new LamportClock(userId)
 
-    // Fetch a server-signed token so the WS server can verify userId/username
-    // without trusting client-supplied fields.
+    // Cancel any in-progress token fetch from a previous connect() call
+    this.connectAbort?.abort()
+    this.connectAbort = new AbortController()
+    const { signal } = this.connectAbort
+
     try {
       const res = await fetch('/api/ws-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomCode }),
+        signal,
       })
       if (!res.ok) throw new Error('token fetch failed')
       const { token } = await res.json() as { token: string }
       this.wsToken = token
     } catch {
+      if (signal.aborted) return
       this.wsToken = ''
     }
 
-    // If disconnect() was called while we were awaiting the token, abort.
-    if (this.intentionalClose) return
+    if (signal.aborted) return
 
     this.openSocket()
   }
@@ -227,6 +232,8 @@ export class PixelTogetherWS {
 
   disconnect(): void {
     this.intentionalClose = true
+    this.connectAbort?.abort()
+    this.connectAbort = null
     this.clearReconnectTimer()
     this.stopPing()
     if (this.ws) {
