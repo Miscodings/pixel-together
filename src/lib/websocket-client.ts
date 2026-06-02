@@ -78,9 +78,11 @@ export class PixelTogetherWS {
       const { token } = await res.json() as { token: string }
       this.wsToken = token
     } catch {
-      // Fall back to unauthenticated join — server will reject in production
       this.wsToken = ''
     }
+
+    // If disconnect() was called while we were awaiting the token, abort.
+    if (this.intentionalClose) return
 
     this.openSocket()
   }
