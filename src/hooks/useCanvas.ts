@@ -46,6 +46,8 @@ interface UseCanvasReturn {
   exportPNG: (scale: 1 | 4 | 8) => void
   clearCanvas: () => void
   canvasSize: CanvasSize
+  brushSize: number
+  setBrushSize: (s: number) => void
 }
 
 function drawCheckerboard(ctx: CanvasRenderingContext2D, width: number, height: number, zoom: number) {
@@ -111,6 +113,7 @@ export function useCanvas(
   const [presence, setPresence] = useState<UserPresence[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [canvasSize] = useState<CanvasSize>(initialWidth)
+  const [brushSize, setBrushSize] = useState(1)
   const pendingRedrawRef = useRef(false)
 
   // undo/redo stacks
@@ -207,24 +210,50 @@ export function useCanvas(
     (x: number, y: number, color: number) => {
       const pc = pixelCanvasRef.current
       if (!wsRef.current) return
-
       const ws = wsRef.current
-      // Use the same Lamport ts for both local apply and network send — keeps client/server in sync
+
+      if (brushSize === 1) {
+        // Original single-pixel behavior
+        const ts = ws.tick()
+        const prevColor = pc.pixels[y * pc.width + x] >>> 0
+        const prevTs = pc.timestamps[y * pc.width + x]
+        const update: PixelUpdate = { x, y, color, ts, userId }
+        const applied = applyPixelUpdate(pc, update)
+        if (applied) {
+          strokeRef.current.push({ x, y, color: prevColor, ts: prevTs, userId })
+          ws.sendPixel(x, y, color, ts)
+          redrawMainCanvas()
+          soundEngine.playPixelTick()
+        }
+        return
+      }
+
+      // Multi-pixel brush
+      const half = Math.floor(brushSize / 2)
       const ts = ws.tick()
+      const batchPixels: { x: number; y: number; color: number; ts: number }[] = []
 
-      const prevColor = pc.pixels[y * pc.width + x] >>> 0
-      const prevTs = pc.timestamps[y * pc.width + x]
-
-      const update: PixelUpdate = { x, y, color, ts, userId }
-      const applied = applyPixelUpdate(pc, update)
-      if (applied) {
-        strokeRef.current.push({ x, y, color: prevColor, ts: prevTs, userId })
-        ws.sendPixel(x, y, color, ts)
+      for (let dy = -half; dy <= half; dy++) {
+        for (let dx = -half; dx <= half; dx++) {
+          const px = x + dx, py = y + dy
+          if (px < 0 || px >= pc.width || py < 0 || py >= pc.height) continue
+          const idx = py * pc.width + px
+          const prevColor = pc.pixels[idx] >>> 0
+          const prevTs = pc.timestamps[idx]
+          strokeRef.current.push({ x: px, y: py, color: prevColor, ts: prevTs, userId })
+          pc.pixels[idx] = color >>> 0
+          pc.timestamps[idx] = ts
+          batchPixels.push({ x: px, y: py, color, ts })
+        }
+      }
+      pc.version++
+      if (batchPixels.length > 0) {
+        ws.sendBatch(batchPixels)
         redrawMainCanvas()
         soundEngine.playPixelTick()
       }
     },
-    [userId, redrawMainCanvas],
+    [userId, brushSize, redrawMainCanvas],
   )
 
   // ─── Tool handlers ───────────────────────────────────────────────────────
@@ -577,5 +606,7 @@ export function useCanvas(
     exportPNG,
     clearCanvas,
     canvasSize,
+    brushSize,
+    setBrushSize,
   }
 }

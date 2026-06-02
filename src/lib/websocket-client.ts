@@ -251,6 +251,10 @@ export class PixelTogetherWS {
     this.sendRaw({ type: 'pixel', x, y, color, ts })
   }
 
+  sendBatch(pixels: { x: number; y: number; color: number; ts: number }[]): void {
+    this.sendRaw({ type: 'batch', pixels })
+  }
+
   sendUndo(reverts: PixelUpdate[]): void {
     this.sendRaw({ type: 'undo', reverts })
   }

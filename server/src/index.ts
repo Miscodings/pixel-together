@@ -632,6 +632,51 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
   }
 
   // ------------------------------------------------------------------
+  // batch — multi-pixel brush stroke, single rate-limit check
+  // ------------------------------------------------------------------
+  if (type === 'batch') {
+    if (!checkRateLimit(meta)) {
+      send(ws, { type: 'error', message: 'Rate limit exceeded' })
+      ws.terminate()
+      return
+    }
+    const pixels = msg.pixels
+    if (!Array.isArray(pixels)) {
+      send(ws, { type: 'error', message: 'Invalid batch payload' })
+      return
+    }
+    const maxPixels = room.canvas.width * room.canvas.height
+    if (pixels.length > maxPixels) {
+      send(ws, { type: 'error', message: 'Batch payload too large' })
+      return
+    }
+    const ceiling = Date.now() + 5 * 60 * 1000
+    let anyApplied = false
+    const broadcast: unknown[] = []
+    for (const p of pixels) {
+      if (
+        typeof p !== 'object' || p === null ||
+        !isValidCoord(p.x, room.canvas.width) ||
+        !isValidCoord(p.y, room.canvas.height) ||
+        !isValidUint32(p.color) ||
+        !isValidTs(p.ts)
+      ) continue
+      const safeTs = Math.min(p.ts as number, ceiling)
+      const update: PixelUpdate = { x: p.x as number, y: p.y as number, color: p.color as number, ts: safeTs, userId: presence.userId }
+      if (applyPixelUpdate(room.canvas, update)) {
+        anyApplied = true
+        room.dirty = true
+        broadcast.push({ type: 'pixel', x: p.x, y: p.y, color: p.color, ts: safeTs, userId: presence.userId })
+      }
+    }
+    if (anyApplied) {
+      room.lastActivity = Date.now()
+      for (const pkt of broadcast) broadcastRoom(room, pkt, ws)
+    }
+    return
+  }
+
+  // ------------------------------------------------------------------
   // cursor
   // ------------------------------------------------------------------
   if (type === 'cursor') {

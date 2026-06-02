@@ -43,6 +43,8 @@ interface LeftToolbarProps {
   onClear: () => void
   onUndo: () => void
   onRedo: () => void
+  brushSize: number
+  setBrushSize: (s: number) => void
 }
 
 export function LeftToolbar({
@@ -51,6 +53,8 @@ export function LeftToolbar({
   onClear,
   onUndo,
   onRedo,
+  brushSize,
+  setBrushSize,
 }: LeftToolbarProps) {
   const shouldReduce = useReducedMotion()
   const [collapsed, setCollapsed] = useState(false)
@@ -130,6 +134,44 @@ export function LeftToolbar({
                   </button>
                 </motion.div>
               ))}
+
+              {/* Brush size slider — only for pencil/eraser */}
+              {(activeTool === 'pencil' || activeTool === 'eraser') && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '2px',
+                    padding: '4px 2px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontFamily: 'Nunito, sans-serif',
+                      fontWeight: 700,
+                      color: 'var(--muted-foreground)',
+                    }}
+                  >
+                    {brushSize}px
+                  </span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    style={{
+                      width: '40px',
+                      accentColor: 'var(--primary)',
+                      cursor: 'pointer',
+                    }}
+                    title={`Brush size: ${brushSize}`}
+                    aria-label="Brush size"
+                  />
+                </div>
+              )}
 
               {/* Divider */}
               <div

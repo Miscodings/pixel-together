@@ -19,6 +19,7 @@ import { HSBColorPicker } from './HSBColorPicker'
 import { PalettePanel } from './PalettePanel'
 import { HotkeyPanel } from './HotkeyPanel'
 import { CollabCursor } from './CollabCursor'
+import { UsersPanel } from './UsersPanel'
 import { soundEngine } from '@/components/sound/SoundEngine'
 import type { CanvasSize } from '@/types/canvas'
 
@@ -71,6 +72,8 @@ export function CanvasWorkspace({
     isConnected,
     exportPNG,
     clearCanvas,
+    brushSize,
+    setBrushSize,
   } = useCanvas(roomId, roomCode, userId, username, canvasWidth, canvasHeight)
 
   const pixelW = canvasWidth * zoom
@@ -388,6 +391,8 @@ export function CanvasWorkspace({
           onClear={clearCanvas}
           onUndo={undo}
           onRedo={redo}
+          brushSize={brushSize}
+          setBrushSize={setBrushSize}
         />
 
         {/* Canvas area */}
@@ -485,6 +490,11 @@ export function CanvasWorkspace({
             overflowX: 'hidden',
           }}
         >
+          <UsersPanel
+            presence={presence}
+            currentUserId={userId}
+            currentUsername={username}
+          />
           <HSBColorPicker
             activeColor={activeColor}
             setActiveColor={setActiveColor}
