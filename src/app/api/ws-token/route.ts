@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${TTL_SECONDS}s`)
+    .setIssuer('pixeltogether-app')
+    .setAudience('pixeltogether-ws')
     .sign(getSecret())
 
   return NextResponse.json({ token })

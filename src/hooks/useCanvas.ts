@@ -112,6 +112,7 @@ export function useCanvas(
   const [presence, setPresence] = useState<UserPresence[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [canvasSize] = useState<CanvasSize>(initialWidth)
+  const pendingRedrawRef = useRef(false)
 
   // undo/redo stacks
   const undoStackRef = useRef<UndoEntry[]>([])
@@ -134,6 +135,16 @@ export function useCanvas(
     ctx.imageSmoothingEnabled = false
     renderPixelCanvas(ctx, pixelCanvasRef.current, zoomRef.current)
   }, [])
+
+  // Batched redraw — coalesces rapid incoming pixel updates into one rAF paint
+  const scheduleRedraw = useCallback(() => {
+    if (pendingRedrawRef.current) return
+    pendingRedrawRef.current = true
+    requestAnimationFrame(() => {
+      pendingRedrawRef.current = false
+      redrawMainCanvas()
+    })
+  }, [redrawMainCanvas])
 
   const redrawBackground = useCallback(() => {
     const bg = bgRef.current
@@ -233,25 +244,50 @@ export function useCanvas(
           break
         }
         case 'fill': {
-          const ts = Date.now()
-          const updates = floodFill(pc, x, y, color, ts, userId)
-          if (updates.length > 0) {
-            const reverts: PixelUpdate[] = updates.map((u) => ({
-              x: u.x,
-              y: u.y,
-              color: pc.pixels[u.y * pc.width + u.x] >>> 0,
-              ts: pc.timestamps[u.y * pc.width + u.x],
-              userId,
-            }))
-            undoStackRef.current.push({ reverts })
-            if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
-            redoStackRef.current = []
+          const targetColor = pc.pixels[y * pc.width + x] >>> 0
+          const fillColor = color >>> 0
+          if (targetColor === fillColor || x < 0 || x >= pc.width || y < 0 || y >= pc.height) break
 
-            const fillPayload = updates.map(u => ({ x: u.x, y: u.y, color: u.color, ts: u.ts }))
-            wsRef.current?.sendFill(fillPayload)
-            redrawMainCanvas()
-            soundEngine.playFillWhoosh()
+          // BFS to find fill region
+          const visited = new Uint8Array(pc.width * pc.height)
+          const fillArea: { x: number; y: number }[] = []
+          const stack = [y * pc.width + x]
+          while (stack.length > 0) {
+            const pos = stack.pop()!
+            if (visited[pos]) continue
+            visited[pos] = 1
+            if ((pc.pixels[pos] >>> 0) !== targetColor) continue
+            const fx = pos % pc.width
+            const fy = Math.floor(pos / pc.width)
+            fillArea.push({ x: fx, y: fy })
+            if (fx > 0) stack.push(pos - 1)
+            if (fx < pc.width - 1) stack.push(pos + 1)
+            if (fy > 0) stack.push(pos - pc.width)
+            if (fy < pc.height - 1) stack.push(pos + pc.width)
           }
+          if (fillArea.length === 0) break
+
+          // Capture originals BEFORE applying
+          const reverts: PixelUpdate[] = fillArea.map(({ x: fx, y: fy }) => ({
+            x: fx, y: fy,
+            color: pc.pixels[fy * pc.width + fx] >>> 0,
+            ts: pc.timestamps[fy * pc.width + fx],
+            userId,
+          }))
+
+          // Apply locally
+          const fillTs = Date.now()
+          for (const { x: fx, y: fy } of fillArea) {
+            applyPixelUpdate(pc, { x: fx, y: fy, color: fillColor, ts: fillTs, userId })
+          }
+
+          undoStackRef.current.push({ reverts })
+          if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
+          redoStackRef.current = []
+
+          wsRef.current?.sendFill(fillArea.map(({ x: fx, y: fy }) => ({ x: fx, y: fy, color: fillColor })))
+          redrawMainCanvas()
+          soundEngine.playFillWhoosh()
           break
         }
         case 'eyedropper': {
@@ -351,7 +387,7 @@ export function useCanvas(
 
       ws.onPixelUpdate = (update: PixelUpdate) => {
         applyPixelUpdate(pixelCanvasRef.current, update)
-        redrawMainCanvas()
+        scheduleRedraw()
       }
 
       ws.onPresenceUpdate = (users: UserPresence[]) => {
@@ -393,7 +429,7 @@ export function useCanvas(
       ws?.disconnect()
       wsRef.current = null
     }
-  }, [roomId, roomCode, userId, username, redrawMainCanvas])
+  }, [roomId, roomCode, userId, username, redrawMainCanvas, scheduleRedraw])
 
   // ─── Re-render on zoom change ────────────────────────────────────────────
 
@@ -444,7 +480,9 @@ export function useCanvas(
     }
 
     undoStackRef.current.push({ reverts: newReverts })
+    wsRef.current?.sendUndo(entry.reverts)
     redrawMainCanvas()
+    soundEngine.playUndo()
   }, [userId, redrawMainCanvas])
 
   // ─── Export ───────────────────────────────────────────────────────────────

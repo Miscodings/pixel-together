@@ -77,7 +77,11 @@ interface WsTokenClaims {
 
 async function verifyWsToken(token: string): Promise<WsTokenClaims | null> {
   try {
-    const { payload } = await jwtVerify(token, getTokenSecret(), { algorithms: ['HS256'] })
+    const { payload } = await jwtVerify(token, getTokenSecret(), {
+      algorithms: ['HS256'],
+      issuer: 'pixeltogether-app',
+      audience: 'pixeltogether-ws',
+    })
     const { userId, username, roomCode } = payload as Record<string, unknown>
     if (typeof userId !== 'string' || typeof username !== 'string' || typeof roomCode !== 'string') {
       return null
@@ -482,11 +486,12 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
       return
     }
 
+    const safeTs = Math.min(ts as number, Date.now() + 5 * 60 * 1000)
     const update: PixelUpdate = {
       x: x as number,
       y: y as number,
       color: color as number,
-      ts: ts as number,
+      ts: safeTs,
       userId: presence.userId,
     }
 
@@ -496,7 +501,7 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
       room.lastActivity = Date.now()
       broadcastRoom(
         room,
-        { type: 'pixel', x, y, color, ts, userId: presence.userId },
+        { type: 'pixel', x, y, color, ts: safeTs, userId: presence.userId },
         ws,
       )
     }
@@ -515,6 +520,11 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
     const pixels = msg.pixels
     if (!Array.isArray(pixels)) {
       send(ws, { type: 'error', message: 'Invalid fill payload' })
+      return
+    }
+    const maxPixels = room.canvas.width * room.canvas.height
+    if (pixels.length > maxPixels) {
+      send(ws, { type: 'error', message: 'Fill payload too large' })
       return
     }
     const MAX_SKEW = 5 * 60 * 1000

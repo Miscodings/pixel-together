@@ -15,8 +15,8 @@ type MessageType =
   | { type: 'pixel'; x: number; y: number; color: number; ts: number; userId: string }
   | { type: 'clear'; ts: number }
   | { type: 'presence'; users: UserPresence[] }
-  | { type: 'join'; user: UserPresence }
-  | { type: 'leave'; userId: string }
+  | { type: 'user_join'; user: UserPresence }
+  | { type: 'user_leave'; userId: string }
   | { type: 'pong' }
 
 export class PixelTogetherWS {
@@ -206,16 +206,16 @@ export class PixelTogetherWS {
         this.onPresenceUpdate(msg.users)
         break
       }
-      case 'join': {
+      case 'clear': {
+        this.onClear(msg.ts)
+        break
+      }
+      case 'user_join': {
         this.onUserJoin(msg.user)
         break
       }
-      case 'leave': {
+      case 'user_leave': {
         this.onUserLeave(msg.userId)
-        break
-      }
-      case 'clear': {
-        this.onClear(msg.ts)
         break
       }
       case 'pong': {
@@ -230,8 +230,9 @@ export class PixelTogetherWS {
     this.sendRaw({ type: 'clear', ts })
   }
 
-  sendFill(updates: { x: number; y: number; color: number; ts: number }[]): void {
-    this.sendRaw({ type: 'fill', pixels: updates })
+  sendFill(pixels: { x: number; y: number; color: number }[]): void {
+    const ts = this.clock.tick()
+    this.sendRaw({ type: 'fill', pixels: pixels.map(p => ({ ...p, ts })) })
   }
 
   sendPixel(x: number, y: number, color: number): void {
