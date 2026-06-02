@@ -1,8 +1,10 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { motion, useInView, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import {
   Zap,
   Trophy,
@@ -11,6 +13,79 @@ import {
   ArrowRight,
   Star,
 } from 'lucide-react'
+
+function useCreateRoom() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const create = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/rooms', { method: 'POST' })
+      const data = await res.json()
+      if (data.roomCode) router.push(`/canvas/${data.roomCode}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+  return { create, loading }
+}
+
+function NavbarButtons() {
+  const { isSignedIn } = useAuth()
+  const { create, loading } = useCreateRoom()
+  if (isSignedIn) {
+    return (
+      <button
+        className="btn-pixel"
+        onClick={create}
+        disabled={loading}
+        style={{ padding: '8px 20px', fontSize: '14px', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+      >
+        {loading ? 'Creating…' : 'Go to Canvas'}
+      </button>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <Link href="/sign-in">
+        <button className="btn-pixel" style={{ padding: '8px 20px', fontSize: '14px', backgroundColor: 'var(--card)', color: 'var(--foreground)' }}>
+          Sign In
+        </button>
+      </Link>
+      <Link href="/sign-up">
+        <button className="btn-pixel" style={{ padding: '8px 20px', fontSize: '14px', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+          Start Drawing
+        </button>
+      </Link>
+    </div>
+  )
+}
+
+function HeroDrawButton() {
+  const { isSignedIn } = useAuth()
+  const { create, loading } = useCreateRoom()
+  if (isSignedIn) {
+    return (
+      <button
+        className="btn-pixel"
+        onClick={create}
+        disabled={loading}
+        style={{ padding: '14px 32px', fontSize: '16px', fontWeight: 800, backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '8px' }}
+      >
+        {loading ? 'Creating room…' : 'Start Drawing'}
+        <ArrowRight size={16} />
+      </button>
+    )
+  }
+  return (
+    <Link href="/sign-up">
+      <button className="btn-pixel" style={{ padding: '14px 32px', fontSize: '16px', fontWeight: 800, backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        Start Drawing Free
+        <ArrowRight size={16} />
+      </button>
+    </Link>
+  )
+}
 
 const SPRING = { type: 'spring' as const, stiffness: 400, damping: 25 }
 const SPRING_SLOW = { type: 'spring' as const, stiffness: 300, damping: 20 }
@@ -98,34 +173,7 @@ function Navbar() {
         PixelTogether
       </span>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <Link href="/sign-in">
-          <button
-            className="btn-pixel"
-            style={{
-              padding: '8px 20px',
-              fontSize: '14px',
-              backgroundColor: 'var(--card)',
-              color: 'var(--foreground)',
-            }}
-          >
-            Sign In
-          </button>
-        </Link>
-        <Link href="/sign-up">
-          <button
-            className="btn-pixel"
-            style={{
-              padding: '8px 20px',
-              fontSize: '14px',
-              backgroundColor: 'var(--primary)',
-              color: 'var(--primary-foreground)',
-            }}
-          >
-            Start Drawing
-          </button>
-        </Link>
-      </div>
+      <NavbarButtons />
     </motion.nav>
   )
 }
@@ -217,24 +265,7 @@ function Hero() {
         transition={{ ...SPRING, delay: 0.15 }}
         style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}
       >
-        <Link href="/sign-up">
-          <button
-            className="btn-pixel"
-            style={{
-              padding: '14px 32px',
-              fontSize: '16px',
-              fontWeight: 800,
-              backgroundColor: 'var(--secondary)',
-              color: 'var(--secondary-foreground)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            Start Drawing Free
-            <ArrowRight size={16} />
-          </button>
-        </Link>
+        <HeroDrawButton />
         <Link href="#demo">
           <button
             className="btn-pixel"
