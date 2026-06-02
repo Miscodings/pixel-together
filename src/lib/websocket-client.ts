@@ -230,6 +230,10 @@ export class PixelTogetherWS {
     this.sendRaw({ type: 'clear', ts })
   }
 
+  sendFill(updates: { x: number; y: number; color: number; ts: number }[]): void {
+    this.sendRaw({ type: 'fill', pixels: updates })
+  }
+
   sendPixel(x: number, y: number, color: number): void {
     const ts = this.clock.tick()
     this.sendRaw({ type: 'pixel', x, y, color, ts })

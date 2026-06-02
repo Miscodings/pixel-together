@@ -504,6 +504,47 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
   }
 
   // ------------------------------------------------------------------
+  // fill — batch pixel update, single rate-limit check
+  // ------------------------------------------------------------------
+  if (type === 'fill') {
+    if (!checkRateLimit(meta)) {
+      send(ws, { type: 'error', message: 'Rate limit exceeded' })
+      ws.terminate()
+      return
+    }
+    const pixels = msg.pixels
+    if (!Array.isArray(pixels)) {
+      send(ws, { type: 'error', message: 'Invalid fill payload' })
+      return
+    }
+    const MAX_SKEW = 5 * 60 * 1000
+    const ceiling = Date.now() + MAX_SKEW
+    let anyApplied = false
+    const broadcast: unknown[] = []
+    for (const p of pixels) {
+      if (
+        typeof p !== 'object' || p === null ||
+        !isValidCoord(p.x, room.canvas.width) ||
+        !isValidCoord(p.y, room.canvas.height) ||
+        !isValidUint32(p.color) ||
+        !isValidTs(p.ts)
+      ) continue
+      const safeTs = Math.min(p.ts as number, ceiling)
+      const update: PixelUpdate = { x: p.x as number, y: p.y as number, color: p.color as number, ts: safeTs, userId: presence.userId }
+      if (applyPixelUpdate(room.canvas, update)) {
+        anyApplied = true
+        room.dirty = true
+        broadcast.push({ type: 'pixel', x: p.x, y: p.y, color: p.color, ts: safeTs, userId: presence.userId })
+      }
+    }
+    if (anyApplied) {
+      room.lastActivity = Date.now()
+      for (const pkt of broadcast) broadcastRoom(room, pkt, ws)
+    }
+    return
+  }
+
+  // ------------------------------------------------------------------
   // undo
   // ------------------------------------------------------------------
   if (type === 'undo') {
@@ -513,7 +554,7 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
       return
     }
 
-    const now = Date.now() / 1000
+    const now = Date.now()
     let anyApplied = false
 
     for (const revert of reverts) {
@@ -596,8 +637,12 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
   // clear
   // ------------------------------------------------------------------
   if (type === 'clear') {
-    const ts = typeof msg.ts === 'number' && Number.isFinite(msg.ts) ? msg.ts : Date.now()
-    const { width, height } = room.canvas
+    if (!checkRateLimit(meta)) {
+      send(ws, { type: 'error', message: 'Rate limit exceeded' })
+      ws.terminate()
+      return
+    }
+    const ts = Date.now()
     room.canvas.pixels.fill(0)
     room.canvas.timestamps.fill(ts)
     room.canvas.version++

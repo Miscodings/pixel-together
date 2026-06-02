@@ -247,9 +247,8 @@ export function useCanvas(
             if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
             redoStackRef.current = []
 
-            for (const u of updates) {
-              wsRef.current?.sendPixel(u.x, u.y, u.color)
-            }
+            const fillPayload = updates.map(u => ({ x: u.x, y: u.y, color: u.color, ts: u.ts }))
+            wsRef.current?.sendFill(fillPayload)
             redrawMainCanvas()
             soundEngine.playFillWhoosh()
           }
