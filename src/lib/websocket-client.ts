@@ -22,6 +22,7 @@ export class PixelTogetherWS {
   private ws: WebSocket | null = null
   private clock: LamportClock
   private roomId: string = ''
+  private roomCode: string = ''
   private userId: string = ''
   private username: string = ''
   private wsToken: string = ''
@@ -59,6 +60,7 @@ export class PixelTogetherWS {
     canvasVersion = 0,
   ): Promise<void> {
     this.roomId = roomId
+    this.roomCode = roomCode
     this.userId = userId
     this.username = username
     this.canvasWidth = canvasWidth
@@ -112,8 +114,8 @@ export class PixelTogetherWS {
       this.reconnectAttempts = 0
       this.sendRaw({
         type: 'join',
-        roomId: this.roomId,
-        token: this.wsToken,   // verified server-side; userId/username derived from claims
+        roomId: this.roomCode,  // server matches this against JWT roomCode claim
+        token: this.wsToken,
         version: this.canvasVersion,
       })
       this.startPing()
