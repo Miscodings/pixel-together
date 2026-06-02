@@ -1,6 +1,12 @@
-import { clerkMiddleware } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+
+const hasRealClerkKey =
+  !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith('pk_') &&
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.includes('placeholder')
+
+// Preview mode is only valid in non-production environments
+const PREVIEW_MODE = process.env.NODE_ENV !== 'production' && !hasRealClerkKey
 
 const PUBLIC_PATHS = [
   '/',
@@ -32,19 +38,24 @@ function isPublicPath(pathname: string): boolean {
 // default export wrapped in Clerk's auth middleware. Do not re-introduce a
 // separate `export function proxy()`; it silently shadows/conflicts with this
 // auth-enforcing handler and can disable route protection.
-export default clerkMiddleware(async (auth, request: NextRequest) => {
+// In dev preview mode (no real Clerk key) let all traffic through so you can
+// see the UI without credentials. In production this path is never reached
+// because PREVIEW_MODE is false when NODE_ENV === 'production'.
+function previewMiddleware(_request: NextRequest) {
+  return NextResponse.next()
+}
+
+import { clerkMiddleware } from '@clerk/nextjs/server'
+
+const authMiddleware = clerkMiddleware(async (auth, request: NextRequest) => {
   const pathname = request.nextUrl.pathname
 
   if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 
-  // Everything matched by `config.matcher` that is not explicitly public is
-  // treated as protected. This is "secure by default": new routes are
-  // protected automatically unless added to PUBLIC_PATHS.
   const { userId } = await auth()
   if (!userId) {
-    // For API routes, return 401 JSON instead of an HTML redirect.
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -55,6 +66,8 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
 
   return NextResponse.next()
 })
+
+export default PREVIEW_MODE ? previewMiddleware : authMiddleware
 
 export const config = {
   matcher: [

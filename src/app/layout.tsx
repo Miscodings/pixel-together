@@ -1,8 +1,16 @@
 import type { Metadata } from 'next'
 import { Nunito, JetBrains_Mono } from 'next/font/google'
-import { ClerkProvider } from '@clerk/nextjs'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
+
+const hasRealClerkKey =
+  !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith('pk_') &&
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.includes('placeholder')
+
+// Skip ClerkProvider only in local dev without a real key — never in production
+const ClerkProvider = (process.env.NODE_ENV !== 'production' && !hasRealClerkKey)
+  ? ({ children }: { children: React.ReactNode }) => <>{children}</>
+  : (await import('@clerk/nextjs')).ClerkProvider
 
 const nunito = Nunito({
   subsets: ['latin'],
