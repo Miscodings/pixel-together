@@ -102,7 +102,7 @@ const CURSOR_EXPIRY_MS = 2000
 const MAX_MESSAGE_BYTES = 64 * 1024  // 64 KB
 const MAX_USERNAME_LEN = 32
 const USERNAME_RE = /^[a-zA-Z0-9 ]+$/
-const DEFAULT_CANVAS_SIZE: CanvasSize = 64
+const DEFAULT_CANVAS_SIZE: CanvasSize = 32
 
 // ---------------------------------------------------------------------------
 // State
@@ -175,7 +175,7 @@ async function loadOrCreateRoom(roomId: string): Promise<Room> {
   let canvasId = roomId
 
   // Try to load from Supabase
-  const row = await supabaseGet('canvases', `room_id=eq.${encodeURIComponent(roomId)}`)
+  const row = await supabaseGet('rooms', `room_code=eq.${encodeURIComponent(roomId)}`)
   if (row) {
     canvasId = (row.id as string) ?? roomId
     const w = (row.width as CanvasSize) ?? DEFAULT_CANVAS_SIZE
@@ -284,8 +284,8 @@ async function flushRoom(roomId: string, room: Room): Promise<void> {
   if (!room.dirty) return
   const serialized = serializeCanvas(room.canvas)
   const ok = await supabasePatch(
-    'canvases',
-    `room_id=eq.${encodeURIComponent(roomId)}`,
+    'rooms',
+    `room_code=eq.${encodeURIComponent(roomId)}`,
     {
       pixels: serialized.pixels,
       timestamps: serialized.timestamps,
