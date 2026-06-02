@@ -55,6 +55,7 @@ export function CanvasWorkspace({
 
   // Shared hex state so HSBColorPicker and PalettePanel stay in sync
   const [syncHex, setSyncHex] = useState<string>('')
+  const [showPanels, setShowPanels] = useState(true)
 
   const {
     canvasRef,
@@ -372,6 +373,18 @@ export function CanvasWorkspace({
         >
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
+
+        {/* Toggle panels */}
+        <button
+          className="tool-btn"
+          onClick={() => setShowPanels(p => !p)}
+          title={showPanels ? 'Hide panels' : 'Show panels'}
+          aria-label={showPanels ? 'Hide panels' : 'Show panels'}
+          style={{ fontSize: '11px', fontWeight: 700, width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
+        >
+          <Users size={14} />
+          {showPanels ? '◀' : '▶'}
+        </button>
       </motion.div>
 
       {/* ─── Middle section: Left Toolbar | Canvas | Right Panels ─────────── */}
@@ -478,37 +491,41 @@ export function CanvasWorkspace({
         </div>
 
         {/* Right panels column */}
-        <div
-          style={{
-            width: '220px',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            padding: '12px 12px 12px 8px',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-          }}
-        >
-          <UsersPanel
-            presence={presence}
-            currentUserId={userId}
-            currentUsername={username}
-          />
-          <HSBColorPicker
-            activeColor={activeColor}
-            setActiveColor={setActiveColor}
-            onHexChange={setSyncHex}
-            externalHex={syncHex}
-          />
-          <PalettePanel
-            activeColor={activeColor}
-            setActiveColor={setActiveColor}
-            onSwatchSelect={setSyncHex}
-            externalHex={syncHex}
-          />
-          <HotkeyPanel />
-        </div>
+        {showPanels && (
+          <div
+            style={{
+              width: '272px',
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              padding: '12px 12px 12px 8px',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              height: '100%',
+            }}
+          >
+            <UsersPanel
+              presence={presence}
+              currentUserId={userId}
+              currentUsername={username}
+            />
+            <HSBColorPicker
+              activeColor={activeColor}
+              setActiveColor={setActiveColor}
+              onHexChange={setSyncHex}
+              externalHex={syncHex}
+            />
+            <PalettePanel
+              activeColor={activeColor}
+              setActiveColor={setActiveColor}
+              onSwatchSelect={setSyncHex}
+              externalHex={syncHex}
+            />
+            <HotkeyPanel />
+          </div>
+        )}
+
       </div>
 
       {/* ─── Bottom Bar ──────────────────────────────────────────────────── */}

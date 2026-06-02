@@ -529,19 +529,23 @@ export function useCanvas(
       htmlCanvas.height = scaledH
       const ctx = htmlCanvas.getContext('2d')!
       ctx.imageSmoothingEnabled = false
-      // Draw each pixel as a scaled rect
-      for (let py = 0; py < height; py++) {
-        for (let px = 0; px < width; px++) {
-          const color = pixels[py * width + px] >>> 0
-          if (color === 0) continue
-          const r = (color >>> 24) & 0xff
-          const g = (color >>> 16) & 0xff
-          const b = (color >>> 8) & 0xff
-          const a = (color & 0xff) / 255
-          ctx.fillStyle = `rgba(${r},${g},${b},${a})`
-          ctx.fillRect(px * scale, py * scale, scale, scale)
-        }
+      // Render at 1x using ImageData (same path as renderPixelCanvas), then scale up
+      const tmp = document.createElement('canvas')
+      tmp.width = width
+      tmp.height = height
+      const tmpCtx = tmp.getContext('2d')!
+      const imageData = tmpCtx.createImageData(width, height)
+      const data = imageData.data
+      for (let i = 0; i < pixels.length; i++) {
+        const packed = pixels[i] >>> 0
+        data[i * 4]     = packed & 0xff
+        data[i * 4 + 1] = (packed >>> 8) & 0xff
+        data[i * 4 + 2] = (packed >>> 16) & 0xff
+        data[i * 4 + 3] = (packed >>> 24) & 0xff
       }
+      tmpCtx.putImageData(imageData, 0, 0)
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(tmp, 0, 0, width, height, 0, 0, scaledW, scaledH)
       htmlCanvas.toBlob((blob) => {
         if (!blob) return
         const url = URL.createObjectURL(blob)

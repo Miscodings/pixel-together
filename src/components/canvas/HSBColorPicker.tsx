@@ -132,7 +132,8 @@ export function HSBColorPicker({
       style={{
         background: 'var(--card)',
         cursor: 'default',
-        overflow: 'hidden',
+        overflow: 'visible',
+        minWidth: 0,
       }}
     >
       {/* Header */}
@@ -165,12 +166,12 @@ export function HSBColorPicker({
             animate={{ height: 'auto', opacity: 1 }}
             exit={shouldReduce ? undefined : { height: 0, opacity: 0 }}
             transition={SPRING}
-            style={{ overflow: 'hidden' }}
+            style={{ overflow: 'visible' }}
           >
-            <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
 
               {/* Color swatch + hex input */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
                 <div
                   style={{
                     width: '40px',
@@ -190,6 +191,8 @@ export function HSBColorPicker({
                   placeholder="#000000"
                   style={{
                     flex: 1,
+                    minWidth: 0,
+                    width: 0,
                     padding: '6px 8px',
                     fontSize: '12px',
                     border: '2px solid var(--border)',

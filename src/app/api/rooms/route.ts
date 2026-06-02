@@ -98,7 +98,7 @@ export async function GET(request: Request) {
     const normalizedCode = code.toUpperCase()
     // Room codes are 6 chars from a fixed alphabet. Reject anything else
     // before touching the database.
-    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(normalizedCode)) {
+    if (!/^[A-HJ-NP-Z2-9]{6,8}$/.test(normalizedCode)) {
       return NextResponse.json({ error: 'Invalid room code' }, { status: 400 })
     }
 
