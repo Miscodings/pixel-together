@@ -43,3 +43,5 @@ next-env.d.ts
 # websocket server build output
 /server/node_modules
 /server/dist
+
+.vercel
