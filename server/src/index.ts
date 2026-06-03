@@ -602,7 +602,7 @@ async function handleMessage(ws: WebSocket, raw: RawData): Promise<void> {
         color: revert.color as number,
         // Use current server ts + 1: guaranteed to win over the stroke being undone,
         // but doesn't lock the pixel for an arbitrary future window.
-        ts: room.canvas.timestamps[idx] + 1,
+        ts: Math.min(room.canvas.timestamps[idx] + 1, Date.now() + 5 * 60 * 1000),
         userId: presence.userId,
       }
 

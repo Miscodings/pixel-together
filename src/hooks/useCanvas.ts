@@ -121,7 +121,9 @@ export function useCanvas(
   const redoStackRef = useRef<UndoEntry[]>([])
 
   // Stroke tracking (for undo grouping)
-  const strokeRef = useRef<PixelUpdate[]>([])
+  // Map key = "x,y" — keeps only the FIRST (pre-stroke) state per pixel so
+  // re-visiting the same pixel in one stroke doesn't corrupt the revert.
+  const strokeRef = useRef<Map<string, PixelUpdate>>(new Map())
   const isDrawingRef = useRef(false)
   const lastPixelRef = useRef<{ x: number; y: number } | null>(null)
 
@@ -220,7 +222,8 @@ export function useCanvas(
         const update: PixelUpdate = { x, y, color, ts, userId }
         const applied = applyPixelUpdate(pc, update)
         if (applied) {
-          strokeRef.current.push({ x, y, color: prevColor, ts: prevTs, userId })
+          const key = `${x},${y}`
+          if (!strokeRef.current.has(key)) strokeRef.current.set(key, { x, y, color: prevColor, ts: prevTs, userId })
           ws.sendPixel(x, y, color, ts)
           redrawMainCanvas()
           soundEngine.playPixelTick()
@@ -240,7 +243,8 @@ export function useCanvas(
           const idx = py * pc.width + px
           const prevColor = pc.pixels[idx] >>> 0
           const prevTs = pc.timestamps[idx]
-          strokeRef.current.push({ x: px, y: py, color: prevColor, ts: prevTs, userId })
+          const key = `${px},${py}`
+          if (!strokeRef.current.has(key)) strokeRef.current.set(key, { x: px, y: py, color: prevColor, ts: prevTs, userId })
           pc.pixels[idx] = color >>> 0
           pc.timestamps[idx] = ts
           batchPixels.push({ x: px, y: py, color, ts })
@@ -344,7 +348,7 @@ export function useCanvas(
       if (e.button !== 0) return
       const { x, y } = getPixelCoords(e, preview)
       isDrawingRef.current = true
-      strokeRef.current = []
+      strokeRef.current = new Map()
       lastPixelRef.current = { x, y }
 
       if (activeTool === 'zoomin') { setZoom(zoom + 1); return }
@@ -378,11 +382,11 @@ export function useCanvas(
       isDrawingRef.current = false
       clearPreview()
 
-      if (strokeRef.current.length > 0) {
-        undoStackRef.current.push({ reverts: [...strokeRef.current] })
+      if (strokeRef.current.size > 0) {
+        undoStackRef.current.push({ reverts: Array.from(strokeRef.current.values()) })
         if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
         redoStackRef.current = []
-        strokeRef.current = []
+        strokeRef.current = new Map()
       }
     }
 
@@ -404,7 +408,7 @@ export function useCanvas(
       const touch = e.touches[0]
       const { x, y } = getTouchPixelCoords(touch)
       isDrawingRef.current = true
-      strokeRef.current = []
+      strokeRef.current = new Map()
       lastPixelRef.current = { x, y }
 
       if (activeTool === 'zoomin') { setZoom(zoom + 1); return }
@@ -441,11 +445,11 @@ export function useCanvas(
       isDrawingRef.current = false
       clearPreview()
 
-      if (strokeRef.current.length > 0) {
-        undoStackRef.current.push({ reverts: [...strokeRef.current] })
+      if (strokeRef.current.size > 0) {
+        undoStackRef.current.push({ reverts: Array.from(strokeRef.current.values()) })
         if (undoStackRef.current.length > UNDO_LIMIT) undoStackRef.current.shift()
         redoStackRef.current = []
-        strokeRef.current = []
+        strokeRef.current = new Map()
       }
     }
 
